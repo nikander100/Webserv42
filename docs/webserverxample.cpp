@@ -5,6 +5,8 @@
 #include <arpa/inet.h>
 #include <istream>
 #include <unistd.h>
+#include <thread>
+#include <chrono>
 
 int main() {
 	// Create a socket
@@ -18,7 +20,7 @@ int main() {
 	sockaddr_in serverAddress{};
 	serverAddress.sin_family = AF_INET;
 	serverAddress.sin_addr.s_addr = INADDR_ANY;
-	serverAddress.sin_port = htons(8080);
+	serverAddress.sin_port = htons(8081);
 	if (bind(serverSocket, (struct sockaddr*)&serverAddress, sizeof(serverAddress)) < 0) {
 		std::cerr << "Failed to bind socket" << std::endl;
 		return 1;
@@ -30,7 +32,7 @@ int main() {
 		return 1;
 	}
 
-	std::cout << "Server started. Listening on port 8080..." << std::endl;
+	std::cout << "Server started. Listening on port 8081..." << std::endl;
 
 	while (true) {
 		// Accept a new connection
@@ -55,6 +57,7 @@ int main() {
 		// Process the request
 		std::string request(buffer, bytesRead);
 		std::cout << "Received request:\n" << request << std::endl;
+		std::this_thread::sleep_for(std::chrono::milliseconds(250)); // Delay for 5 seconds
 
 		// Send a response back to the client
 		std::string response = "HTTP/1.1 200 OK\r\nContent-Length: 12\r\n\r\nHello, World!";
