@@ -64,7 +64,7 @@ public:
 	void setHost(const std::string& host);
 	void setPort(const std::string &port);
 	void setRoot(const std::string& root);
-	void setFd(int fd);a
+	void setFd(int fd);
 	void setClientMaxBodySize(const std::string& clientmaxbodysize);
 	void setIndex(const std::string& index);
 	void setAutoIndex(const std::string& autoindex);
