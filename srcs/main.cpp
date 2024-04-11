@@ -4,7 +4,7 @@ int	main(int ac, char **av) {
 	if (ac <= 2) {
 		try {
 			std::string conf;
-			//some configparser parser;
+			//some configparser parser/serverCluster;
 			//ServerContainer manager;
 			//signals?
 			
