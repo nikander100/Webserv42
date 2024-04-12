@@ -35,37 +35,38 @@ void Server::setId(int id) {
 	_id = id;
 }
 
-void Server::setServerName(const std::string &servername) {
-	//check validity probably based on ; at end of input
+void Server::setServerName(std::string &servername) {
+	checkInput(servername);
 	_servername = servername;
 }
 
-void Server::setHost(const std::string &host) {
-	//check validity probably based on ; at end of input
+void Server::setHost(std::string &host) {
+	checkInput(host);
 	if (host == "localhost")
 		_host = inet_addr("127.0.0.1");
-	//check if host valid. i n ot throw error.
+	else if (!isValidHost(host))
+		throw Error("Wrong syntax: host");
 	_host = inet_addr(host.data());
 }
 
-void Server::setPort(const std::string &portStr) {
-	//check validity probably based on ; at end of input
+void Server::setPort(std::string &portStr) {
+	checkInput(portStr);
 
 	// Check if the parameter is a valid number
 	std::regex r("\\d+");
 	if (!std::regex_match(portStr, r)) {
-		// throw error "Wrong syntax: port"
+		throw Error("Wrong syntax: port");
 	}
 
-	// Convert the parameter to an integer
+	// Convert the parameter to an 16bit integer
 	uint16_t port = static_cast<uint16_t>(std::stoi(portStr));
-	//if (port < 1 || port > 66535)
-		// throw error "Wrong syntax: port"
+	if (port < 1 || port > 66535)
+		throw Error("Wrong syntax: port");
 	_port = port;
 }
 
-void Server::setRoot(const std::string &root) {
-	//check validity probably based on ; at end of input
+void Server::setRoot(std::string &root) {
+	checkInput(root);
 	// check if path is file, folder or something else (this happens quite often probably also in responses/locatoins/parse, might be best to make an extra class with these functions like configUtils or have a class for config file that can check read/checkfiles/ifexistandreadable(perms)/gettype/ return the content of the file it has the path too. ) probably enum the types of files or use constexpr instead of define macro
 	//if folder set _root = root.
 	std::string dir = getcwd(NULL, 0);
@@ -80,24 +81,24 @@ void Server::setFd(int fd) {
 	_fd = fd;
 }
 
-void Server::setClientMaxBodySize(const std::string &clientmaxbodysize) {
-	//check validity probably based on ; at end of input
+void Server::setClientMaxBodySize(std::string &clientmaxbodysize) {
+	checkInput(clientmaxbodysize);
 	try {
 		_clientMaxBodySize = std::stoul(clientmaxbodysize);
 	} catch (const std::invalid_argument &e){
-		// throw wrong syntax clientmaxbody...
+		throw Error("Wrong syntax: clientMaxBodySize");
 	} catch (std::out_of_range &e) {
-		// throw wrong syntax clientmaxbody...
+		throw Error("Wrong syntax: clientMaxBodySize");
 	}
 }
 
-void Server::setIndex(const std::string &index) {
-	//check validity probably based on ; at end of input
+void Server::setIndex(std::string &index) {
+	checkInput(index);
 	_index = index;
 }
 
-void Server::setAutoIndex(const std::string& autoindex) {
-	//check validity probably based on ; at end of input
+void Server::setAutoIndex(std::string& autoindex) {
+	checkInput(autoindex);
 	_autoindex = (autoindex == "on") ? true : false;
 }
 
@@ -114,4 +115,15 @@ void Server::initErrorPages(void) {
 	for (auto code : error_codes) {
 		_errorPages[code] = "";
 	}
+}
+
+void Server::checkInput(std::string &inputcheck) {
+	if (inputcheck.back() != ';' || inputcheck.empty())
+		throw Error("Token is invalid");
+	inputcheck.pop_back();
+}
+
+bool Server::isValidHost(const std::string& host) const {
+	struct sockaddr_in socketaddress;
+	return inet_pton(AF_INET, host.c_str(), &(socketaddress.sin_addr));
 }
