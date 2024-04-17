@@ -24,6 +24,7 @@ public:
 
 private:
 	// Private member variabless
+	// this doesnt work yetas server gets copied and filedescriptors dont like that, porably use smart pointers
 	std::vector<Server> _servers;
 
 	// Private member functions
