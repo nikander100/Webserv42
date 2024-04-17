@@ -1,5 +1,8 @@
 #pragma once
 
+#include "Webserv.hpp"
+#include "Server.hpp"
+
 /**
  * @brief The ServerContainer class is the main program that contains and manages the servers.
  * 
@@ -16,9 +19,12 @@ public:
 	virtual ~ServerContainer();
 
 	// Public member functions
+	void setupServers();
+	void startServers();
 
 private:
 	// Private member variabless
+	std::vector<Server> _servers;
 
 	// Private member functions
 };
