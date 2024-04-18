@@ -38,3 +38,5 @@
 constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
 
 constexpr uint16_t TEST_PORT = 8081;
+
+#include "AnsiCodes.hpp"

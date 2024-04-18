@@ -37,7 +37,7 @@ void RequestHandler::addHeaders() {
 	};
 
 	std::cout << "File is = " << _requestLine[1] << std::endl;
-	std::string extension = _requestLine[1].substr(_requestLine[1].rfind('.'));
+	std::string extension = _requestLine[1].rfind('.') != std::string::npos ? _requestLine[1].substr(_requestLine[1].rfind('.')) : "";
 	std::string mimeType = mimeTypes.count(extension) ? mimeTypes.at(extension) : "text/plain";
 
 	_responseContent.append("Content-Type: " + mimeType + "\r\n");
@@ -56,7 +56,7 @@ std::string RequestHandler::getContent() {
 	return _responseContent;
 }
 const char *RequestHandler::getBody() {
-	return _requestBody.data();
+	return _responseBody.data();
 }
 size_t RequestHandler::getBodyLength() {
 	return _bodyLength;
@@ -91,7 +91,9 @@ void RequestHandler::buildBody()
 
 void RequestHandler::readFile()
 {
+	std::cout << BLUE << "requestline[1]" << _requestLine[1] << std::endl;
 	std::string file_path = _requestLine[1].compare("/") == 0 ? "server_dir/home.html" : "server_dir" + _requestLine[1];
+	std::cout << GREEN << file_path << RESET << std::endl;
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
@@ -101,9 +103,11 @@ void RequestHandler::readFile()
 	_bodyLength = static_cast<size_t>(fin.tellg());
 	fin.seekg(0, std::ios::beg);
 
-	_requestBody.resize(_bodyLength);
-	if (!fin.read(_requestBody.data(), _bodyLength)) {
+	_responseBody.resize(_bodyLength);
+	if (!fin.read(_responseBody.data(), _bodyLength)) {
 		std::cerr << "webserv: read error: " << strerror(errno) << std::endl;
 		throw std::runtime_error("Failed to read file");
 	}
+	std::cout << YELLOW << "YEE: " << _responseBody.data() << RESET << std::endl; 
+	std::cout << "Image size: " << _responseBody.size() << " bytes" << std::endl;
 }

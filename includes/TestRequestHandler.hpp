@@ -22,9 +22,8 @@ class RequestHandler
 		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>
 		// std::map<std::string, std::string> _requset_heaeders;
 		size_t _bodyLength;
-		std::vector<char> _requestBody;
+		std::vector<char> _responseBody;
 		std::string _responseContent;
-		std::string _responseBody;
 
 		void buildBody();
 		void addStatus();
