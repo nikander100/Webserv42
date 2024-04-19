@@ -30,3 +30,9 @@
 *.exe
 *.out
 *.app
+
+# notes
+notes.md
+
+#testserverdir
+server_dir*/
