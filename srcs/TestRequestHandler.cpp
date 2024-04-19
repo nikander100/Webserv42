@@ -36,12 +36,13 @@ void RequestHandler::addHeaders() {
 		// Add more MIME types as needed
 	};
 
-	std::cout << "File is = " << _requestLine[1] << std::endl;
+	DEBUG_PRINT("File is = " << _requestLine[1]);
 	std::string extension = _requestLine[1].rfind('.') != std::string::npos ? _requestLine[1].substr(_requestLine[1].rfind('.')) : "";
 	std::string mimeType = mimeTypes.count(extension) ? mimeTypes.at(extension) : "text/plain";
 
-	_responseContent.append("Content-Type: " + mimeType + "\r\n");
-	_responseContent.append("Content-Length: " + std::to_string(_bodyLength) + "\r\n\n");
+	_responseHeader.append("Content-Type: " + mimeType + "\r\n");
+	_responseHeader.append("Content-Length: " + std::to_string(_bodyLength) + "\r\n");
+	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
 }
 void    RequestHandler::buildResponse()
 {
@@ -52,21 +53,21 @@ void    RequestHandler::buildResponse()
 	// Temp for testing only
 }
 
-std::string RequestHandler::getContent() {
-	return _responseContent;
+std::string RequestHandler::getHeader() {
+	return _responseHeader;
 }
 const char *RequestHandler::getBody() {
 	return _responseBody.data();
 }
 size_t RequestHandler::getBodyLength() {
-	return _bodyLength;
+	return std::max(_bodyLength, _responseBody.size());
 }
 
 /* Check if there is any error and assign the correct status code to response message */
 void RequestHandler::addStatus()
 {
 	// For testing Assume no errors for now.
-	_responseContent.append("HTTP/1.1 200 OK\n");
+	_responseHeader.append("HTTP/1.1 200 OK\n");
 }
 
 
@@ -91,9 +92,9 @@ void RequestHandler::buildBody()
 
 void RequestHandler::readFile()
 {
-	std::cout << BLUE << "requestline[1]" << _requestLine[1] << std::endl;
+	DEBUG_PRINT(BLUE, "requestline[1]" << _requestLine[1]);
 	std::string file_path = _requestLine[1].compare("/") == 0 ? "server_dir/home.html" : "server_dir" + _requestLine[1];
-	std::cout << GREEN << file_path << RESET << std::endl;
+	DEBUG_PRINT(GREEN, file_path);
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
@@ -101,6 +102,7 @@ void RequestHandler::readFile()
 	}
 
 	_bodyLength = static_cast<size_t>(fin.tellg());
+	DEBUG_PRINT(GREEN, "bodylength in readfile: " << _bodyLength);
 	fin.seekg(0, std::ios::beg);
 
 	_responseBody.resize(_bodyLength);
@@ -108,6 +110,15 @@ void RequestHandler::readFile()
 		std::cerr << "webserv: read error: " << strerror(errno) << std::endl;
 		throw std::runtime_error("Failed to read file");
 	}
-	std::cout << YELLOW << "YEE: " << _responseBody.data() << RESET << std::endl; 
-	std::cout << "Image size: " << _responseBody.size() << " bytes" << std::endl;
+	/* DEBUG START */
+	if (file_path.substr(file_path.find_last_of(".")) == ".html") {
+		std::cout << YELLOW << "YEE: ";
+		for (char c : _responseBody) {
+			std::cout << c;
+		}
+		std::cout << RESET << std::endl;
+	}
+	std::cout << RESET << std::endl;
+	DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
+	/* DEBUG END */
 }

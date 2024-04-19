@@ -13,7 +13,7 @@ class RequestHandler
 		RequestHandler(std::string requestContent);
 		~RequestHandler();
 		void buildResponse();
-		std::string getContent();
+		std::string getHeader();
 		const char *getBody();
 		size_t getBodyLength();
 
@@ -23,7 +23,8 @@ class RequestHandler
 		// std::map<std::string, std::string> _requset_heaeders;
 		size_t _bodyLength;
 		std::vector<char> _responseBody;
-		std::string _responseContent;
+		std::string _responseHeader;
+		// std::string _responseContent;
 
 		void buildBody();
 		void addStatus();

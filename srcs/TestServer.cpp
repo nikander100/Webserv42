@@ -150,32 +150,42 @@ void Server::_handleRequest(int epollFd, int clientFd) {
 		// Process request
 		RequestHandler responseGenerator(_requestContent);
 		responseGenerator.buildResponse();
-		responseContent = responseGenerator.getContent();
+		responseContent = responseGenerator.getHeader();
 		std::cout << MAGENTA << responseContent << RESET << std::endl;
 		// append body;
-		responseContent.append("\r\n"); // append a blank line to separate headers from body
-		responseContent.append(responseGenerator.getBody());
+		// responseContent.append(responseGenerator.getBody()); << if keepin this it wont work with images...
+		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
 
 		// Send response to client
-		std::cout << BLUE << "res content: " << responseContent << RESET << std::endl;
-		int bytesSent = send(clientFd, responseContent.c_str(), responseContent.length(), 0);
-		if (bytesSent == -1) {
-			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
-		}
+		std::cout << BLUE << "res content: " << responseContent.c_str() << RESET << std::endl;
+		std::cout << BLUE << "res content.length: " << responseContent.length() << RESET << std::endl;
 
-		// Close connection;
+		 std::string::size_type totalBytesSent = 0;
+		 while (totalBytesSent < responseContent.length()) {
+		 	int bytesSent = send(clientFd, responseContent.data() + totalBytesSent, responseContent.length() - totalBytesSent, 0);
+		 	if (bytesSent == -1) {
+		 			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
+		 			break;
+		 	}
+		 totalBytesSent += bytesSent;
+		 DEBUG_PRINT(YELLOW, totalBytesSent);
+		 }
 
 		// Remove clientFd from epoll instance
 		std::cout << BRIGHT_RED << "Ik heb bytes gelezen je moeder" << RESET << std::endl;
 		_removeClientFromEpoll(epollFd, clientFd);
+
+		// Close connection;
 		close(clientFd);
 	}
 	else if (bytesRead == 0) {
+		// Remove clientFd from epoll instance
+		_removeClientFromEpoll(epollFd, clientFd);
+
 		// Client closed the conneciton
 		std::cout << "Client closed connection." << std::endl;
 		close(clientFd);
 
-		// Remove clientFd from epoll instance
-		_removeClientFromEpoll(epollFd, clientFd);
+
 	}
 }
