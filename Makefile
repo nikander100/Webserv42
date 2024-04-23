@@ -1,23 +1,20 @@
-# **************************************************************************** #
-#                                                                              #
-#                                                         :::      ::::::::    #
-#    Makefile                                           :+:      :+:    :+:    #
-#                                                     +:+ +:+         +:+      #
-#    By: code <code@student.42.fr>                  +#+  +:+       +#+         #
-#                                                 +#+#+#+#+#+   +#+            #
-#    Created: 2023/09/23 19:06:22 by code              #+#    #+#              #
-#    Updated: 2024/04/12 15:17:21 by code             ###   ########.fr        #
-#                                                                              #
-# **************************************************************************** #
-
-NAME := webServ
+NAME := testServer.out
 NICKNAME := webServ
-CXX := c++
-CXXFLAGS := -Wall -Werror -Wextra -g
-SRC :=	src/main.cpp
-		
-HDR := include/webServ.hpp
-OBJ := $(SRC:.cpp=.o)
+
+SRCS_DIR := srcs
+SRCS := testMain.cpp TestRequestHandler.cpp TestServer.cpp TestServerContainer.cpp
+SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
+
+OBJ_DIR := obj
+OBJS := $(patsubst $(SRCS_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
+
+INC_DIR := includes/
+
+CXX := clang++
+CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
+CPPFLAGS := -I$(INC_DIR)
+
+DIR_DUP = mkdir -p $(@D)
 
 GREEN := \033[32;1m
 YELLOW := \033[33;1m
@@ -27,25 +24,30 @@ RESET := \033[0m
 
 all: $(NAME)
 
-$(NAME): $(OBJ)
+run: all
+	./$(NAME) test
+
+$(NAME): $(OBJS)
 	@printf "%b%s%b" "$(YELLOW)$(BOLD)" "Compiling $(NICKNAME)..." "$(RESET)"
-	@$(CXX) $(CXXFLAGS) $^ -o $@
+	@$(CXX) $^ -o $@
 	@printf "\t\t%b%s%b\n" "$(GREEN)$(BOLD)" "[OK]" "$(RESET)"
 
-%.o: %.cpp $(HDR)
-	@$(CXX) $(CXXFLAGS) -c $< -o $@
+$(OBJ_DIR)/%.o: $(SRCS_DIR)/%.cpp $(INC_DIR)*.hpp
+	$(DIR_DUP)
+	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+	$(info CREATED $@)
 
 open: $(NAME)
 	@./$(NAME)
 
 clean:
 	@echo "$(RED)$(BOLD)Cleaning $(NICKNAME)...$(RESET)"
-	@rm -f $(OBJ)
+	@rm -rf $(OBJ_DIR)
 
-fclean:
+fclean: clean
 	@echo "$(RED)$(BOLD)Fully cleaning $(NICKNAME)...$(RESET)"
-	@rm -f $(NAME) $(OBJ)
+	@rm -f $(NAME)
 
-re: fclean $(NAME)
+re: fclean all
 
-.PHONY: all clean fclean re
+.PHONY: all clean fclean re open run
