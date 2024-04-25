@@ -160,16 +160,22 @@ void Server::_handleRequest(int epollFd, int clientFd) {
 		std::cout << BLUE << "res content: " << responseContent.c_str() << RESET << std::endl;
 		std::cout << BLUE << "res content.length: " << responseContent.length() << RESET << std::endl;
 
-		 std::string::size_type totalBytesSent = 0;
-		 while (totalBytesSent < responseContent.length()) {
-		 	int bytesSent = send(clientFd, responseContent.data() + totalBytesSent, responseContent.length() - totalBytesSent, 0);
-		 	if (bytesSent == -1) {
-		 			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
-		 			break;
-		 	}
-		 totalBytesSent += bytesSent;
-		 DEBUG_PRINT(YELLOW, totalBytesSent);
-		 }
+		std::string::size_type totalBytesSent = 0;
+		while (totalBytesSent < responseContent.length()) {
+			int bytesSent = send(clientFd, responseContent.data() + totalBytesSent, responseContent.length() - totalBytesSent, 0);
+			if (bytesSent == -1) {
+				std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
+				if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				// If send() would block, retry
+					continue;
+				} else {
+				// For other errors, stop sending
+					break;
+				}
+			}
+			totalBytesSent += bytesSent;
+			DEBUG_PRINT(YELLOW, totalBytesSent);
+		}
 
 		// Remove clientFd from epoll instance
 		std::cout << BRIGHT_RED << "Ik heb bytes gelezen je moeder" << RESET << std::endl;
