@@ -1,5 +1,6 @@
 #pragma once
 #include "Webserv.hpp"
+#include "RequestHandler.hpp"
 
 class Location;
 
@@ -15,7 +16,7 @@ public:
 	void setHost(std::string& host);
 	void setPort(std::string &port);
 	void setRoot(std::string& root);
-	void setFd(int fd);
+	void setListenFd(int fd);
 	void setClientMaxBodySize(std::string& clientmaxbodysize);
 	void setIndex(std::string&);
 	void setAutoIndex(std::string& autoindex);
@@ -30,6 +31,7 @@ public:
 	in_addr_t& getHost(void) const;
 	uint16_t& getPort(void) const;
 	std::string& getRoot(void) const;
+	// const int getFd(void) const; possibly not needed 
 	size_t& getClientMaxBodySize(void) const;
 	std::string& getIndex(void) const;
 	bool& getAutoIndex(void) const;
@@ -37,6 +39,9 @@ public:
 	const std::string &getErrorPagePath(short key);
 	const std::vector<Location> &getLocations(void);
 	const std::vector<Location>::iterator getlocationByKey(std::string key);
+	const sockaddr_in &getServerAddress() const;
+
+	void run();
 
 	class Error : public std::exception {
 		public:
@@ -61,12 +66,18 @@ private:
 	bool _autoindex;
 	std::map<short, std::string> _errorPages;
 	std::vector<Location> _locations;
-	struct sockaddr_in _serveraddress;
-	int _fd;
+	struct sockaddr_in _serverAddress;
+	int _listenFd;
 
 	static void checkInput(std::string &inputcheck);
 	bool isValidHost(const std::string &host) const;
 	void initErrorPages(void);
+
+	std::string _requestContent;
+
+	void _acceptConnection(int epollFd);
+	void _handleRequest(int epollFd, int clientFd);
+	void _removeClientFromEpoll(int epollFd, int clientFd);
 
 
 	// exception class that can make message like _msg = "base: " + errormessage
