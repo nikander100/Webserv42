@@ -6,7 +6,7 @@
 #    By: code <code@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/23 19:06:22 by code              #+#    #+#              #
-#    Updated: 2024/04/12 15:17:21 by code             ###   ########.fr        #
+#    Updated: 2024/04/25 15:19:33 by code             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
@@ -14,9 +14,9 @@ NAME := webServ
 NICKNAME := webServ
 CXX := c++
 CXXFLAGS := -Wall -Werror -Wextra -g
-SRC :=	src/main.cpp
+SRC :=	srcs/main.cpp
 		
-HDR := include/webServ.hpp
+HDR := includes/webServ.hpp
 OBJ := $(SRC:.cpp=.o)
 
 GREEN := \033[32;1m
