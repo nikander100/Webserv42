@@ -8,7 +8,7 @@ SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 OBJ_DIR := obj
 OBJS := $(patsubst $(SRCS_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 
-INC_DIR := includes/
+INC_DIR := ./
 
 CXX := clang++
 CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
