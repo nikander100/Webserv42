@@ -1,7 +1,19 @@
 #include "Server.hpp"
 #include "RequestHandler.hpp"
 
+
 Server::Server() : _port(TEST_PORT), _listenFd(-1) {
+	// init server address structure
+	memset(&_serverAddress, 0, sizeof(_serverAddress));
+	_serverAddress.sin_family = AF_INET;
+	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
+	_serverAddress.sin_port = htons(_port);
+
+	EpollManager def; // DO NOT LEAVE THIS IN HERE THIS IS JUST SO CODE DOESNT COMPLAIN.
+	_epollManager = def;
+}
+
+Server::Server(EpollManager &epollManager) : _epollManager(epollManager),_port(TEST_PORT), _listenFd(-1) {
 	// init server address structure
 	memset(&_serverAddress, 0, sizeof(_serverAddress));
 	_serverAddress.sin_family = AF_INET;
@@ -19,31 +31,138 @@ const sockaddr_in& Server::getServerAddress() const {
 	return _serverAddress;
 }
 
-void Server::run() {
+const int Server::getListenFd() const {
+	return _listenFd;
+}
 
-	int option_value = 1;
-
-	// Create socket
+void Server::setupServer() {
+	// Create Socket
 	_listenFd = socket(AF_INET, SOCK_STREAM, 0);
 	if (_listenFd == -1) {
 		std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
 		exit(EXIT_FAILURE);
 	}
-	std::cout << "create socket good" << std::endl;
 
-	//Set socket to be reuseable
-	setsockopt(_listenFd, SOL_SOCKET, SO_REUSEADDR, &option_value, sizeof(int));
-	std::cout << "sock reusable good" << std::endl;
+	// Set sock options
+	int optionValue = 1;
+	setsockopt(_listenFd, SOL_SOCKET, SO_REUSEADDR, &optionValue, sizeof(int));
 
-	//Bind socket to serv address
+	// Bind socket to server address
 	if (bind(_listenFd, reinterpret_cast<const struct sockaddr*>(&_serverAddress), sizeof(_serverAddress)) == -1) {
 		std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
 		close(_listenFd);
 		exit(EXIT_FAILURE);
 	}
-	std::cout << "bind good" << std::endl;
+
+	// Start listening on socket
+	if (listen(_listenFd, SOMAXCONN) == -1) {
+		std::cerr << "Error listening on socket: " << strerror(errno) << std::endl;
+		close(_listenFd);
+		exit(EXIT_FAILURE);
+	}
+
+	_epollManager.addToEpoll(_listenFd);
 }
 
+bool Server::handlesClient(const int &clientFd) {
+	for (auto &client : _clients) {
+			if (client.getSocket() == clientFd) {
+				return true;
+			}
+		}
+	return false;
+}
+
+// sents the response
+void Server::sendResponse(const int &clientFd, const std::string &responseContent) {
+	std::string::size_type totalBytesSent = 0;
+	while (totalBytesSent < responseContent.length()) {
+		int bytesSent = send(clientFd, responseContent.data() + totalBytesSent, responseContent.length() - totalBytesSent, 0);
+		if (bytesSent == -1) {
+			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
+			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+				// If send() would block, retry
+				continue;
+			} else {
+				// For other errors, stop sending
+				break;
+			}
+		}
+		totalBytesSent += bytesSent;
+		DEBUG_PRINT(YELLOW, totalBytesSent);
+	}
+}
+
+// creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
+void Server::acceptNewConnection() {
+	struct sockaddr_in clientAddress;
+	socklen_t clientAddressSize = sizeof(clientAddress);
+
+	int clientSock = accept(_listenFd, reinterpret_cast<struct sockaddr*>(&clientAddress), &clientAddressSize);
+	if (clientSock == -1) {
+		std::cerr << "Error accepting connection: " << strerror(errno) << std::endl;
+		return;
+	}
+
+	// Set non-blocking mode
+	if (fcntl(clientSock, F_SETFL, fcntl(clientSock, F_GETFL, 0) | O_NONBLOCK) == -1) {
+		std::cerr << "Error setting client socket to non-blocking: " << strerror(errno) << std::endl;
+		close(clientSock);
+		return;
+	}
+
+	// Add client socket to epoll
+	_epollManager.addToEpoll(clientSock);
+
+	// Create Client object and add it to the list of clients
+	Client newClient(clientSock, clientAddress);
+	_clients.push_back(newClient);
+}
+
+
+void Server::handleRequest(const int &clientFd) {
+	// Handle requests from clients
+	char buffer[8192];
+	int bytesRead = 0;
+	std::string responseContent;
+
+	// Read data from client socket
+	bytesRead = read(clientFd, buffer, sizeof(buffer));
+	if (bytesRead == -1) {
+		std::ostringstream errMsg;
+		errMsg << "Error reading from client socket: " << strerror(errno);
+		close(clientFd);
+		throw std::runtime_error(errMsg.str());
+	}
+
+	// TODO NOT DONE YET WITH THIS, have to make this work with the current requesthandler
+	if (bytesRead > 0) {
+		// Process request and generate response
+		std::string requestContent(buffer, bytesRead);
+		RequestHandler responseGenerator(requestContent);
+		responseGenerator.buildResponse();
+		// responseContent = responseGenerator.getContent();
+				responseContent = responseGenerator.getHeader();
+		std::cout << MAGENTA << responseContent << RESET << std::endl;
+		// append body;
+		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
+
+		// Send response to client
+		sendResponse(clientFd, responseContent);
+
+		// Remove clientFd from epoll
+		_epollManager.removeFromEpoll(clientFd);
+	} else if (bytesRead == 0) {
+		// Client closed connection
+		std::cout << "Client closed connection." << std::endl;
+		_epollManager.removeFromEpoll(clientFd);
+	} else {
+		std::cerr << "Error reading from client socket: " << strerror(errno) << std::endl;
+		_epollManager.removeFromEpoll(clientFd);
+	}
+
+	close(clientFd); // Close client connection
+}
 
 /*
 void Server::run() {

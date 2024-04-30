@@ -1,12 +1,15 @@
 #pragma once
 #include "Webserv.hpp"
 #include "RequestHandler.hpp"
+#include "EpollManager.hpp"
+#include "Client.hpp"
 
 class Location;
 
 class Server {
 public:
 	Server(void);
+	Server(EpollManager &epollManager);
 	Server(const Server &copy);
 	Server &operator = (const Server &rhs);
 	virtual ~Server(void);
@@ -31,7 +34,7 @@ public:
 	in_addr_t& getHost(void) const;
 	uint16_t& getPort(void) const;
 	std::string& getRoot(void) const;
-	// const int getFd(void) const; possibly not needed 
+	const int getListenFd(void) const;
 	size_t& getClientMaxBodySize(void) const;
 	std::string& getIndex(void) const;
 	bool& getAutoIndex(void) const;
@@ -42,6 +45,13 @@ public:
 	const sockaddr_in &getServerAddress() const;
 
 	void run();
+	//splitservernewfunc
+	void setupServer();
+	bool handlesClient(const int &clientFd);
+	void acceptNewConnection();
+	void handleRequest(const int& clientFd);
+	void sendResponse(const int &clientFd, const std::string &response);
+
 
 	class Error : public std::exception {
 		public:
@@ -73,11 +83,9 @@ private:
 	bool isValidHost(const std::string &host) const;
 	void initErrorPages(void);
 
-	std::string _requestContent;
-
-	void _acceptConnection(int epollFd);
-	void _handleRequest(int epollFd, int clientFd);
-	void _removeClientFromEpoll(int epollFd, int clientFd);
+	//newcodesplitsbs
+	EpollManager &_epollManager; // Reference to the epoll instance in the container so servers can add their clients to the main epoll instnace.
+	std::vector<Client> _clients;
 
 
 	// exception class that can make message like _msg = "base: " + errormessage
