@@ -124,6 +124,7 @@ void Server::handleRequest(const int &clientFd) {
 	}
 
 	// TODO NOT DONE YET WITH THIS, have to make this work with the current requesthandler
+	// TODO make socket clsas and inherrit server/client socket from it to get rid of repetitive code.
 	if (bytesRead > 0) {
 		// Process request and generate response
 		std::string requestContent(buffer, bytesRead);
