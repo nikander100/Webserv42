@@ -20,22 +20,27 @@ void ServerContainer::startServers() {
 	std::vector<struct epoll_event> events;
 	while (true) {
 		events.clear();
-		events = _epollManager.waitForEvents();
+		events = EpollManager::getInstance().waitForEvents();
 		for (const auto &event : events) {
-			if (event.events & EPOLLIN) {
-				// If it's a server socket, accept new connection
-				if (_checkServer(event.data.fd)) {
-					continue;
-				}
+			_handleEvent(event);
+		}
+	}
+}
 
-				// If it's a client socket, find the server that handles this client
-				// and let it handle the request
-				for (auto &server : _servers) {
-					if (server.handlesClient(event.data.fd)) {
-						server.handleRequest(event.data.fd);
-						break;
-					}
-				}
+// handles the events from epoll and redirects them to the correct server
+void ServerContainer::_handleEvent(const struct epoll_event &event) {
+	if (event.events & EPOLLIN) {
+		// If it's a server socket, accept new connection
+		if (_checkServer(event.data.fd)) {
+			return;
+		}
+
+		// If it's a client socket, find the server that handles this client
+		// and let it handle the request
+		for (auto &server : _servers) {
+			if (server.handlesClient(event.data.fd)) {
+				server.handleRequest(event.data.fd);
+				break;
 			}
 		}
 	}

@@ -9,7 +9,6 @@ class Location;
 class Server {
 public:
 	Server(void);
-	Server(EpollManager &epollManager);
 	Server(const Server &copy);
 	Server &operator = (const Server &rhs);
 	virtual ~Server(void);
@@ -84,7 +83,6 @@ private:
 	void initErrorPages(void);
 
 	//newcodesplitsbs
-	EpollManager &_epollManager; // Reference to the epoll instance in the container so servers can add their clients to the main epoll instnace.
 	std::vector<Client> _clients;
 
 

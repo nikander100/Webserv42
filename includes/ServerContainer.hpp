@@ -30,10 +30,10 @@ private:
 	_epollFd: stores the socket fd's of the servers and client.
 	*/
 	std::vector<Server> _servers;
-	EpollManager _epollManager; // main instanec of the epoll manager.
 
 	// Private member functions
 	// void _acceptNewConnection(Server &);
 	// void _handleRequest(const int &fd);
 	bool _checkServer(const int &fd);
+	void _handleEvent(const struct epoll_event &event);
 };

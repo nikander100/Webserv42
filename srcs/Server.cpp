@@ -8,19 +8,7 @@ Server::Server() : _port(TEST_PORT), _listenFd(-1) {
 	_serverAddress.sin_family = AF_INET;
 	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
 	_serverAddress.sin_port = htons(_port);
-
-	EpollManager def; // DO NOT LEAVE THIS IN HERE THIS IS JUST SO CODE DOESNT COMPLAIN.
-	_epollManager = def;
 }
-
-Server::Server(EpollManager &epollManager) : _epollManager(epollManager),_port(TEST_PORT), _listenFd(-1) {
-	// init server address structure
-	memset(&_serverAddress, 0, sizeof(_serverAddress));
-	_serverAddress.sin_family = AF_INET;
-	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	_serverAddress.sin_port = htons(_port);
-}
-
 
 Server::~Server(){
 	if (_listenFd != -1)
@@ -61,7 +49,7 @@ void Server::setupServer() {
 		exit(EXIT_FAILURE);
 	}
 
-	_epollManager.addToEpoll(_listenFd);
+	EpollManager::getInstance().addToEpoll(_listenFd);
 }
 
 bool Server::handlesClient(const int &clientFd) {
@@ -71,6 +59,32 @@ bool Server::handlesClient(const int &clientFd) {
 			}
 		}
 	return false;
+}
+
+// creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
+void Server::acceptNewConnection() {
+	struct sockaddr_in clientAddress;
+	socklen_t clientAddressSize = sizeof(clientAddress);
+
+	int clientSock = accept(_listenFd, reinterpret_cast<struct sockaddr*>(&clientAddress), &clientAddressSize);
+	if (clientSock == -1) {
+		std::cerr << "Error accepting connection: " << strerror(errno) << std::endl;
+		return;
+	}
+
+	// Set non-blocking mode
+	if (fcntl(clientSock, F_SETFL, fcntl(clientSock, F_GETFL, 0) | O_NONBLOCK) == -1) {
+		std::cerr << "Error setting client socket to non-blocking: " << strerror(errno) << std::endl;
+		close(clientSock);
+		return;
+	}
+
+	// Add client socket to epoll
+	EpollManager::getInstance().addToEpoll(clientSock);
+
+	// Create Client object and add it to the list of clients
+	Client newClient(clientSock, clientAddress);
+	_clients.push_back(newClient);
 }
 
 // sents the response
@@ -93,38 +107,12 @@ void Server::sendResponse(const int &clientFd, const std::string &responseConten
 	}
 }
 
-// creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
-void Server::acceptNewConnection() {
-	struct sockaddr_in clientAddress;
-	socklen_t clientAddressSize = sizeof(clientAddress);
-
-	int clientSock = accept(_listenFd, reinterpret_cast<struct sockaddr*>(&clientAddress), &clientAddressSize);
-	if (clientSock == -1) {
-		std::cerr << "Error accepting connection: " << strerror(errno) << std::endl;
-		return;
-	}
-
-	// Set non-blocking mode
-	if (fcntl(clientSock, F_SETFL, fcntl(clientSock, F_GETFL, 0) | O_NONBLOCK) == -1) {
-		std::cerr << "Error setting client socket to non-blocking: " << strerror(errno) << std::endl;
-		close(clientSock);
-		return;
-	}
-
-	// Add client socket to epoll
-	_epollManager.addToEpoll(clientSock);
-
-	// Create Client object and add it to the list of clients
-	Client newClient(clientSock, clientAddress);
-	_clients.push_back(newClient);
-}
-
-
 void Server::handleRequest(const int &clientFd) {
 	// Handle requests from clients
 	char buffer[8192];
 	int bytesRead = 0;
 	std::string responseContent;
+	EpollManager &epollManager = EpollManager::getInstance(); 
 
 	// Read data from client socket
 	bytesRead = read(clientFd, buffer, sizeof(buffer));
@@ -151,14 +139,14 @@ void Server::handleRequest(const int &clientFd) {
 		sendResponse(clientFd, responseContent);
 
 		// Remove clientFd from epoll
-		_epollManager.removeFromEpoll(clientFd);
+		epollManager.removeFromEpoll(clientFd);
 	} else if (bytesRead == 0) {
 		// Client closed connection
 		std::cout << "Client closed connection." << std::endl;
-		_epollManager.removeFromEpoll(clientFd);
+		epollManager.removeFromEpoll(clientFd);
 	} else {
 		std::cerr << "Error reading from client socket: " << strerror(errno) << std::endl;
-		_epollManager.removeFromEpoll(clientFd);
+		epollManager.removeFromEpoll(clientFd);
 	}
 
 	close(clientFd); // Close client connection
