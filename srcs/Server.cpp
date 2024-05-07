@@ -92,17 +92,21 @@ void Server::handleRequest(const int &clientFd) {
 	try {
 		// Read data from client socket
 		std::string requestContent = client.recv();
+		if (requestContent.empty()) {
+			std::cout << "Client closed connection." << std::endl;
+		} else {
+			// Process request and generate response
+			RequestHandler responseGenerator(requestContent);
+			responseGenerator.buildResponse();
+			responseContent = responseGenerator.getHeader();
+			std::cout << MAGENTA << responseContent << RESET << std::endl;
+			responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
 
-		// Process request and generate response
-		RequestHandler responseGenerator(requestContent);
-		responseGenerator.buildResponse();
-		responseContent = responseGenerator.getHeader();
-		std::cout << MAGENTA << responseContent << RESET << std::endl;
-		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
-
-		// Send response to client
-		sendResponse(client, responseContent);
-	} catch (const std::runtime_error& e) {
+			// Send response to client
+			sendResponse(client, responseContent);
+		}
+	} 
+	catch (const std::runtime_error& e) {
 		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
 	}
 
