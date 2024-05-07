@@ -1,5 +1,6 @@
 #include "EpollManager.hpp"
 
+
 EpollManager::EpollManager() {
 	_epollFd = epoll_create1(0);
 	if (_epollFd == -1) {
@@ -9,6 +10,9 @@ EpollManager::EpollManager() {
 }
 
 EpollManager::~EpollManager() {
+	// Close the epoll file descriptor
+	if (_epollFd != -1)
+		close(_epollFd);
 }
 
 void EpollManager::addToEpoll(int fd) {

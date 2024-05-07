@@ -2,7 +2,8 @@
 #include "Webserv.hpp"
 #include "RequestHandler.hpp"
 #include "EpollManager.hpp"
-#include "Client.hpp"
+#include "ServerSocket.hpp"
+#include "ClientSocket.hpp"
 
 class Location;
 
@@ -49,7 +50,7 @@ public:
 	bool handlesClient(const int &clientFd);
 	void acceptNewConnection();
 	void handleRequest(const int& clientFd);
-	void sendResponse(const int &clientFd, const std::string &response);
+	void sendResponse(ClientSocket& client, const std::string &response);
 
 
 	class Error : public std::exception {
@@ -75,15 +76,18 @@ private:
 	bool _autoindex;
 	std::map<short, std::string> _errorPages;
 	std::vector<Location> _locations;
-	struct sockaddr_in _serverAddress;
-	int _listenFd;
+	
+	ServerSocket _socket;
 
 	static void checkInput(std::string &inputcheck);
 	bool isValidHost(const std::string &host) const;
 	void initErrorPages(void);
 
 	//newcodesplitsbs
-	std::vector<Client> _clients;
+	std::vector<std::unique_ptr<ClientSocket>> _clients;
+	ClientSocket& _getClient(const int &clientFd);
+	void _removeClient(const int &clientFd);
+	
 
 
 	// exception class that can make message like _msg = "base: " + errormessage

@@ -1,60 +1,33 @@
 #include "Server.hpp"
 #include "RequestHandler.hpp"
 
-
-Server::Server() : _port(TEST_PORT), _listenFd(-1) {
-	// init server address structure
-	memset(&_serverAddress, 0, sizeof(_serverAddress));
-	_serverAddress.sin_family = AF_INET;
-	_serverAddress.sin_addr.s_addr = htonl(INADDR_ANY);
-	_serverAddress.sin_port = htons(_port);
+Server::Server() : _port(TEST_PORT) {
 }
 
 Server::~Server(){
-	if (_listenFd != -1)
-	close(_listenFd);
-}
-
-const sockaddr_in& Server::getServerAddress() const {
-	return _serverAddress;
+	_socket.close();
 }
 
 const int Server::getListenFd() const {
-	return _listenFd;
+	return _socket.getFd();
 }
 
 void Server::setupServer() {
-	// Create Socket
-	_listenFd = socket(AF_INET, SOCK_STREAM, 0);
-	if (_listenFd == -1) {
-		std::cerr << "Error creating socket: " << strerror(errno) << std::endl;
+	try {
+		// Initialize ServerSocket
+
+		_socket.initialize(AF_INET, SOCK_STREAM, 0, SOL_SOCKET, SO_REUSEADDR, SOMAXCONN, _port);
+		// Add server socket to epoll
+		EpollManager::getInstance().addToEpoll(_socket.getFd());
+	} catch (const std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
 		exit(EXIT_FAILURE);
 	}
-
-	// Set sock options
-	int optionValue = 1;
-	setsockopt(_listenFd, SOL_SOCKET, SO_REUSEADDR, &optionValue, sizeof(int));
-
-	// Bind socket to server address
-	if (bind(_listenFd, reinterpret_cast<const struct sockaddr*>(&_serverAddress), sizeof(_serverAddress)) == -1) {
-		std::cerr << "Error binding socket: " << strerror(errno) << std::endl;
-		close(_listenFd);
-		exit(EXIT_FAILURE);
-	}
-
-	// Start listening on socket
-	if (listen(_listenFd, SOMAXCONN) == -1) {
-		std::cerr << "Error listening on socket: " << strerror(errno) << std::endl;
-		close(_listenFd);
-		exit(EXIT_FAILURE);
-	}
-
-	EpollManager::getInstance().addToEpoll(_listenFd);
 }
 
 bool Server::handlesClient(const int &clientFd) {
 	for (auto &client : _clients) {
-			if (client.getSocket() == clientFd) {
+			if (client->getFd() == clientFd) {
 				return true;
 			}
 		}
@@ -66,7 +39,7 @@ void Server::acceptNewConnection() {
 	struct sockaddr_in clientAddress;
 	socklen_t clientAddressSize = sizeof(clientAddress);
 
-	int clientSock = accept(_listenFd, reinterpret_cast<struct sockaddr*>(&clientAddress), &clientAddressSize);
+	int clientSock = accept(_socket.getFd(), reinterpret_cast<struct sockaddr*>(&clientAddress), &clientAddressSize);
 	if (clientSock == -1) {
 		std::cerr << "Error accepting connection: " << strerror(errno) << std::endl;
 		return;
@@ -83,74 +56,64 @@ void Server::acceptNewConnection() {
 	EpollManager::getInstance().addToEpoll(clientSock);
 
 	// Create Client object and add it to the list of clients
-	Client newClient(clientSock, clientAddress);
-	_clients.push_back(newClient);
+	std::unique_ptr<ClientSocket> newClient = std::make_unique<ClientSocket>(clientSock, clientAddress);
+	_clients.push_back(std::move(newClient));
 }
 
-// sents the response
-void Server::sendResponse(const int &clientFd, const std::string &responseContent) {
-	std::string::size_type totalBytesSent = 0;
-	while (totalBytesSent < responseContent.length()) {
-		int bytesSent = send(clientFd, responseContent.data() + totalBytesSent, responseContent.length() - totalBytesSent, 0);
-		if (bytesSent == -1) {
-			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
-				// If send() would block, retry
-				continue;
-			} else {
-				// For other errors, stop sending
-				break;
-			}
+void Server::sendResponse(ClientSocket& client, const std::string &response) {
+	client.send(response);
+}
+
+ClientSocket &Server::_getClient(const int &clientFd) {
+	for (auto &client : _clients) {
+		if (client->getFd() == clientFd) {
+			return *client;
 		}
-		totalBytesSent += bytesSent;
-		DEBUG_PRINT(YELLOW, totalBytesSent);
 	}
+	throw std::runtime_error("Client not found");
+}
+
+void Server::_removeClient(const int &clientFd) {
+	_clients.erase(
+		std::remove_if(
+			_clients.begin(), _clients.end(),
+			[&clientFd](const std::unique_ptr<ClientSocket>& client) {
+				return client->getFd() == clientFd;}
+		),
+		_clients.end()
+	);
 }
 
 void Server::handleRequest(const int &clientFd) {
 	// Handle requests from clients
-	char buffer[8192];
-	int bytesRead = 0;
 	std::string responseContent;
-	EpollManager &epollManager = EpollManager::getInstance(); 
+	ClientSocket& client = _getClient(clientFd);
 
-	// Read data from client socket
-	bytesRead = read(clientFd, buffer, sizeof(buffer));
-	if (bytesRead == -1) {
-		std::ostringstream errMsg;
-		errMsg << "Error reading from client socket: " << strerror(errno);
-		close(clientFd);
-		throw std::runtime_error(errMsg.str());
-	}
+	try {
+		// Read data from client socket
+		std::string requestContent = client.recv();
 
-	// TODO NOT DONE YET WITH THIS, have to make this work with the current requesthandler
-	// TODO make socket clsas and inherrit server/client socket from it to get rid of repetitive code.
-	if (bytesRead > 0) {
 		// Process request and generate response
-		std::string requestContent(buffer, bytesRead);
 		RequestHandler responseGenerator(requestContent);
 		responseGenerator.buildResponse();
-		// responseContent = responseGenerator.getContent();
-				responseContent = responseGenerator.getHeader();
+		responseContent = responseGenerator.getHeader();
 		std::cout << MAGENTA << responseContent << RESET << std::endl;
-		// append body;
 		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
 
 		// Send response to client
-		sendResponse(clientFd, responseContent);
-
-		// Remove clientFd from epoll
-		epollManager.removeFromEpoll(clientFd);
-	} else if (bytesRead == 0) {
-		// Client closed connection
-		std::cout << "Client closed connection." << std::endl;
-		epollManager.removeFromEpoll(clientFd);
-	} else {
-		std::cerr << "Error reading from client socket: " << strerror(errno) << std::endl;
-		epollManager.removeFromEpoll(clientFd);
+		sendResponse(client, responseContent);
+	} catch (const std::runtime_error& e) {
+		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
 	}
 
-	close(clientFd); // Close client connection
+	// Remove clientFd from epoll
+	EpollManager::getInstance().removeFromEpoll(clientFd);
+
+	// Close connection
+	client.close();
+
+	// Remove client from list(vector) of clients
+	_removeClient(clientFd);
 }
 
 /*

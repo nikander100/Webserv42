@@ -30,7 +30,7 @@ void ServerContainer::startServers() {
 // handles the events from epoll and redirects them to the correct server
 void ServerContainer::_handleEvent(const struct epoll_event &event) {
 	if (event.events & EPOLLIN) {
-		// If it's a server socket, accept new connection
+		// check if its a existing server
 		if (_checkServer(event.data.fd)) {
 			return;
 		}
