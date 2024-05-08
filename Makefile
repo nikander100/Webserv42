@@ -2,7 +2,12 @@ NAME := testServer.out
 NICKNAME := webServ
 
 SRCS_DIR := srcs
-SRCS := testMain.cpp TestRequestHandler.cpp TestServer.cpp TestServerContainer.cpp
+SRCS := main.cpp \
+		checkbalance.cpp \
+		readfile.cpp \
+		# Server.cpp \
+		utils.cpp 
+		
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 
 OBJ_DIR := obj
@@ -10,8 +15,8 @@ OBJS := $(patsubst $(SRCS_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 
 INC_DIR := includes/
 
-CXX := clang++
-CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
+CXX := c++
+CXXFLAGS := -Wall -Werror -Wextra -g -std=c++20 -x c++
 CPPFLAGS := -I$(INC_DIR)
 
 DIR_DUP = mkdir -p $(@D)

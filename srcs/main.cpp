@@ -1,4 +1,4 @@
-#include "../includes/Webserv.hpp"
+#include "Webserv.hpp"
 
 int	main(int ac, char **av) {
 	if (ac <= 2) {
