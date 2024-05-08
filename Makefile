@@ -6,15 +6,17 @@
 #    By: code <code@student.42.fr>                  +#+  +:+       +#+         #
 #                                                 +#+#+#+#+#+   +#+            #
 #    Created: 2023/09/23 19:06:22 by code              #+#    #+#              #
-#    Updated: 2024/04/25 15:19:33 by code             ###   ########.fr        #
+#    Updated: 2024/05/08 14:46:25 by code             ###   ########.fr        #
 #                                                                              #
 # **************************************************************************** #
 
 NAME := webServ
 NICKNAME := webServ
 CXX := c++
-CXXFLAGS := -Wall -Werror -Wextra -g
-SRC :=	srcs/main.cpp
+CXXFLAGS := -Wall -Werror -Wextra -g -fsanitize=address
+SRC :=	srcs/main.cpp \
+		srcs/checkbalance.cpp \
+		srcs/readfile.cpp
 		
 HDR := includes/webServ.hpp
 OBJ := $(SRC:.cpp=.o)
