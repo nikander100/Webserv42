@@ -1,6 +1,14 @@
 {
   "version": "0.2.0",
   "configurations": [
+	{
+		"type": "lldb",
+		"request": "launch",
+		"name": "Launch",
+		"program": "${workspaceFolder}/webServ",
+		"args": ["config_files/blank.conf"],
+		"cwd": "${workspaceFolder}"
+	},
     {
       "name": "C/C++ Runner: Debug Session",
       "type": "cppdbg",
