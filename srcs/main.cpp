@@ -3,12 +3,12 @@
 int	main(int ac, char **av) {
 	if (ac <= 2) {
 		try {
-			std::string conf;
+			std::vector<std::string> file = readfile(av);
 			//some configparser parser/serverCluster;
 			//ServerContainer manager;
 			//signals?
 			
-			conf = (ac == 1 ? "somedefault/config.conf" : av[1]);
+			// conf = (ac == 1 ? "somedefault/config.conf" : av[1]);
 			//parser.setup(conf);
 			//manager.create(parser.servers)
 			//manager.statr();
