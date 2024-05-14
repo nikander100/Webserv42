@@ -29,7 +29,7 @@ private:
 	_server: store servers parased from input config file, if no config file was spefcied. default configruation is used.
 	_epollFd: stores the socket fd's of the servers and client.
 	*/
-	std::vector<Server> _servers;
+	std::vector<std::unique_ptr<Server>> _servers;
 
 	// Private member functions
 	// void _acceptNewConnection(Server &);

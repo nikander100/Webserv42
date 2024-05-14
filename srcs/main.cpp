@@ -1,4 +1,5 @@
-#include "../includes/Webserv.hpp"
+#include "Webserv.hpp"
+#include "ServerContainer.hpp"
 
 int	main(int ac, char **av) {
 	if (ac <= 2) {
@@ -17,6 +18,9 @@ int	main(int ac, char **av) {
 			std::cerr << e.what() << std::endl;
 			return 1;
 		}
+		ServerContainer testing;
+		testing.setupServers();
+		testing.startServers();
 		return 0;
 	}
 	//somelogger

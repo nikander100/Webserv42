@@ -10,8 +10,8 @@ class Location;
 class Server {
 public:
 	Server(void);
-	Server(const Server &copy);
-	Server &operator = (const Server &rhs);
+	Server(const Server &copy) = delete;
+	Server &operator = (const Server &rhs) = delete;
 	virtual ~Server(void);
 
 	void setId(int id);
@@ -23,8 +23,8 @@ public:
 	void setClientMaxBodySize(std::string& clientmaxbodysize);
 	void setIndex(std::string&);
 	void setAutoIndex(std::string& autoindex);
-	void setLocation(const std::string& locationName, const std::vector<std::string>& location);
-	void setErrorPages(const std::map<short, std::string>& errorpages);
+	// void setLocation(const std::string& locationName, const std::vector<std::string>& location);
+	// void setErrorPages(const std::map<short, std::string>& errorpages);
 	// void setServerAddress(struct sockaddr_in serveraddress); possibly not needed.
 
 	bool validErrorPages(void);
@@ -34,14 +34,14 @@ public:
 	in_addr_t& getHost(void) const;
 	uint16_t& getPort(void) const;
 	std::string& getRoot(void) const;
-	const int getListenFd(void) const;
+	int getListenFd(void) const;
 	size_t& getClientMaxBodySize(void) const;
 	std::string& getIndex(void) const;
 	bool& getAutoIndex(void) const;
-	const std::map<short, std::string> &getErrorPages(void) const;
-	const std::string &getErrorPagePath(short key);
-	const std::vector<Location> &getLocations(void);
-	const std::vector<Location>::iterator getlocationByKey(std::string key);
+	// const std::map<short, std::string> &getErrorPages(void) const;
+	// const std::string &getErrorPagePath(short key);
+	// const std::vector<Location> &getLocations(void);
+	// const std::vector<Location>::iterator getlocationByKey(std::string key);
 	const sockaddr_in &getServerAddress() const;
 
 	void run();
@@ -74,8 +74,8 @@ private:
 	unsigned long _clientMaxBodySize;
 	std::string _index;
 	bool _autoindex;
-	std::map<short, std::string> _errorPages;
-	std::vector<Location> _locations;
+	// std::map<short, std::string> _errorPages;
+	// std::vector<Location> _locations;
 	
 	ServerSocket _socket;
 

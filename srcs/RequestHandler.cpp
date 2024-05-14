@@ -73,12 +73,12 @@ void RequestHandler::addStatus()
 
 size_t file_size(std::string file_path) 
 {
-	file_path = "server_dir" + file_path;
+	file_path = "wwwroot/server_dir" + file_path;
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
 		std::cerr << file_path << std::endl;
-		throw std::runtime_error("Failed to open file");
+		throw std::runtime_error("Failed to open file [" + file_path + "]");
 	}
 
 	size_t size = fin.tellg();
@@ -93,12 +93,12 @@ void RequestHandler::buildBody()
 void RequestHandler::readFile()
 {
 	DEBUG_PRINT(BLUE, "requestline[1]" << _requestLine[1]);
-	std::string file_path = _requestLine[1].compare("/") == 0 ? "server_dir/home.html" : "server_dir" + _requestLine[1];
+	std::string file_path = _requestLine[1].compare("/") == 0 ? "wwwroot/server_dir/home.html" : "wwwroot/server_dir" + _requestLine[1];
 	DEBUG_PRINT(GREEN, file_path);
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
-		throw std::runtime_error("Failed to open file");
+		throw std::runtime_error("Failed to open file [" + file_path + "]");
 	}
 
 	_bodyLength = static_cast<size_t>(fin.tellg());

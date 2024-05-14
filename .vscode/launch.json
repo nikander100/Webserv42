@@ -1,0 +1,47 @@
+{
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "g++ - Build and debug active file",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
+			"args": ["test"], // command line arguments go here
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				}
+			],
+			"preLaunchTask": "build", // name of the task to run before debugging
+			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
+		},
+		{
+			"name": "g++ - reBuild and debug active file",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
+			"args": ["test"], // command line arguments go here
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				}
+			],
+			"preLaunchTask": "reBuild", // name of the task to run before debugging
+			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
+		}
+	]
+}

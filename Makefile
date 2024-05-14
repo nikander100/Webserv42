@@ -2,7 +2,14 @@ NAME := testServer.out
 NICKNAME := webServ
 
 SRCS_DIR := srcs
-SRCS := testMain.cpp TestRequestHandler.cpp TestServer.cpp TestServerContainer.cpp
+SRCS := Socket.cpp \
+		ServerSocket.cpp \
+		ClientSocket.cpp \
+		Server.cpp \
+		ServerContainer.cpp \
+		RequestHandler.cpp \
+		EpollManager.cpp \
+		main.cpp
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 
 OBJ_DIR := obj
@@ -10,7 +17,7 @@ OBJS := $(patsubst $(SRCS_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 
 INC_DIR := includes/
 
-CXX := clang++
+CXX := g++
 CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
 CPPFLAGS := -I$(INC_DIR)
 

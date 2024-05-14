@@ -8,11 +8,11 @@ ServerContainer::~ServerContainer() {
 
 void ServerContainer::setupServers()
 {
-	Server testServer; // later create servers here using info provided in config file.
-	_servers.push_back(testServer);
+	std::unique_ptr<Server> testServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
+	_servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
 
 	for (auto &server : _servers) {
-		server.setupServer();
+		server->setupServer(); // Use -> to call methods on the Server object
 	}
 }
 
@@ -38,8 +38,8 @@ void ServerContainer::_handleEvent(const struct epoll_event &event) {
 		// If it's a client socket, find the server that handles this client
 		// and let it handle the request
 		for (auto &server : _servers) {
-			if (server.handlesClient(event.data.fd)) {
-				server.handleRequest(event.data.fd);
+			if (server->handlesClient(event.data.fd)) {
+				server->handleRequest(event.data.fd);
 				break;
 			}
 		}
@@ -51,9 +51,9 @@ bool ServerContainer::_checkServer(const int &fd)
 {
 	for(auto &server : _servers)
 	{
-		if(fd == server.getListenFd())
+		if(fd == server->getListenFd())
 		{
-			server.acceptNewConnection();
+			server->acceptNewConnection();
 			return true;
 		}
 	}

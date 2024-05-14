@@ -1,3 +1,4 @@
+#pragma once
 #include "Webserv.hpp"
 
 class EpollManager {
