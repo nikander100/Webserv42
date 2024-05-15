@@ -10,6 +10,8 @@ SRCS := Socket.cpp \
 		RequestHandler.cpp \
 		EpollManager.cpp \
 		main.cpp
+		checkbalance.cpp \
+		readfile.cpp \
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 
 OBJ_DIR := obj
