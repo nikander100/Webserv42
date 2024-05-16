@@ -2,9 +2,10 @@ name: Makefile CI
 
 on:
   push:
-    branches: [ "main", "*-nikander", "nikander" ]
+    branches: [ "*-nikander", "nikander" ]
   pull_request:
     branches: [ "main" ]
+    types: [ closed ]
 
 jobs:
   build:
@@ -31,9 +32,9 @@ jobs:
         path: ./artifact-dir
 
   test:
+    if: github.event_name == 'pull_request' && github.event.pull_request.merged == true
     needs: build
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main'
 
     steps:
     - uses: actions/checkout@v4
