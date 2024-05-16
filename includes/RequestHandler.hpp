@@ -26,7 +26,7 @@ class RequestHandler
 		std::string _responseHeader;
 		// std::string _responseContent;
 
-		void buildBody();
+		bool buildBody();
 		void addStatus();
 		void addHeaders();
 		void readFile();

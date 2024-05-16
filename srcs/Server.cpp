@@ -197,6 +197,7 @@ void Server::acceptNewConnection() {
 		int ClientFd = newClient->getFd();
 
 		// Add the new client to the list of clients
+		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr));
 		_clients.push_back(std::move(newClient));
 
 		// Add client socket to epoll
@@ -231,6 +232,8 @@ void Server::handleRequest(const int &client_fd) {
 	std::string responseContent;
 	ClientSocket& client = _getClient(client_fd);
 
+	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
+
 	try {
 		// Read data from client socket
 		std::string requestContent = client.recv();
@@ -241,7 +244,11 @@ void Server::handleRequest(const int &client_fd) {
 			RequestHandler responseGenerator(requestContent);
 			responseGenerator.buildResponse();
 			responseContent = responseGenerator.getHeader();
-			std::cout << MAGENTA << responseContent << RESET << std::endl;
+			// std::cout << MAGENTA << responseContent << RESET << std::endl;
+			if (responseContent.empty()) { // TODO temp check to be changed
+				std::cerr << "Error generating response." << std::endl;
+				return;
+			}
 			responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
 
 			// Send response to client
