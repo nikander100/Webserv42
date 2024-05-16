@@ -10,6 +10,7 @@ SRCS := Socket.cpp \
 		RequestHandler.cpp \
 		EpollManager.cpp \
 		main.cpp \
+		utils.cpp \
 		checkbalance.cpp \
 		readfile.cpp \
 

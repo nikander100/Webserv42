@@ -2,7 +2,7 @@
 
 
 EpollManager::EpollManager() {
-	_epollFd = epoll_create1(0);
+	_epollFd = epoll_create1(EPOLL_CLOEXEC);
 	if (_epollFd == -1) {
 		std::cerr << "Error creating epoll instance: " << strerror(errno) << std::endl;
 		throw std::runtime_error("Failed to create epoll instance"); //TODO USE CUSTOM ERROR LOG
@@ -13,6 +13,11 @@ EpollManager::~EpollManager() {
 	// Close the epoll file descriptor
 	if (_epollFd != -1)
 		close(_epollFd);
+}
+
+EpollManager &EpollManager::getInstance() {
+	static EpollManager instance; // Guaranteed to be destroyed, instantiated on first use.
+	return instance;
 }
 
 void EpollManager::addToEpoll(int fd) {

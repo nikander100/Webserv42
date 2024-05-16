@@ -13,9 +13,9 @@ RequestHandler::~RequestHandler(){
   2- map<string, string> _request_headers filled with header titles and header info. as key/value.
   3- string _request_body filled with request body (if expected).
 */
-RequestHandler::RequestHandler(std::string requestContent)
+RequestHandler::RequestHandler(std::string request_content)
 {
-	std::stringstream ss(requestContent);
+	std::stringstream ss(request_content);
 
 	for (auto i = 0; i != 3; ++i)
 		ss >> _requestLine[i];

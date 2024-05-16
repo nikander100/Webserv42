@@ -9,6 +9,6 @@ public:
 	ClientSocket(const ClientSocket &) = delete;
 	ClientSocket &operator=(const ClientSocket &) = delete;
 
-	void send(const std::string &data) override;
-	std::string recv() override;
+	void send(const std::string &data);
+	std::string recv();
 };

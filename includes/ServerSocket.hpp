@@ -2,6 +2,8 @@
 
 #include "Socket.hpp"
 
+class ClientSocket; // forward declaration.
+
 class ServerSocket : public Socket {
 public:
 	ServerSocket();
@@ -9,9 +11,6 @@ public:
 	ServerSocket(const ServerSocket &) = delete;
 	ServerSocket &operator=(const ServerSocket &) = delete;
 
-	//TODO: Possibly not needed
-	void send(const std::string &data) override;
-	std::string recv() override;
-
-	void initialize(int domain, int type, int protocol, int level, int optname, int backlog, int port);
+	void initialize(int domain, int type, int protocol, int level, int optname, int backlog, in_addr_t host, int port);
+	std::unique_ptr<ClientSocket> accept() const;
 };

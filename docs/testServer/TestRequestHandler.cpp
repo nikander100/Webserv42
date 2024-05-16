@@ -7,7 +7,6 @@ RequestHandler::~RequestHandler(){
 }
 
 /* 
-  TODO: Request message to be parsed here.
   Outcome:
   1- string _request_line[3] filled with 1-Method 2-Path 3-HTTP Ver.
   2- map<string, string> _request_headers filled with header titles and header info. as key/value.

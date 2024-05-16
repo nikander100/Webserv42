@@ -1,8 +1,4 @@
-# Webserv42
-42 Webserv Project by kkalika & nvan-der
-
-
-# [Coding Guidelines](./docs/guidelines.md)
+# Coding Guidelines
 
 ## Naming Conventions
 
