@@ -8,7 +8,6 @@ on:
 
 jobs:
   build:
-
     runs-on: ubuntu-latest
 
     steps:
@@ -19,3 +18,24 @@ jobs:
 
     - name: Build
       run: make
+
+  test:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install dependencies
+      run: sudo apt-get install g++
+
+    - name: Build
+      run: make
+
+    - name: Start server
+      run: ./testServer.out test
+
+    - name: Curl / Test server
+      run: |
+        sleep 3  # Give the server some time to start
+        curl http://localhost:8081/index.html
