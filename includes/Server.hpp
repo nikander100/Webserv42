@@ -3,7 +3,7 @@
 #include "RequestHandler.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
-#include "ClientSocket.hpp"
+#include "Client.hpp"
 
 class Location;
 
@@ -114,8 +114,8 @@ private:
 	void initErrorPages(void);
 
 	//newcodesplitsbs
-	std::vector<std::unique_ptr<ClientSocket>> _clients;
-	ClientSocket& _getClient(const int &clientFd);
+	std::vector<std::unique_ptr<Client>> _clients;
+	Client &_getClient(const int &clientFd);
 	void _removeClient(int clientFd);
 	
 

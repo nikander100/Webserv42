@@ -9,13 +9,15 @@ void ClientSocket::send(const std::string &data) {
 		int bytesSent = ::send(_fd, data.substr(totalBytesSent).c_str(), data.length() - totalBytesSent, 0);
 		if (bytesSent == -1) {
 			std::cerr << "Error sending response to client: " << strerror(errno) << std::endl;
-			if (errno == EAGAIN || errno == EWOULDBLOCK) {
+			break;
+			// TODO possibly not allowed by subject 14-20
+			/* if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				// If send() would block, retry
 				continue;
 			} else {
 				// For other errors, stop sending
 				break;
-			}
+			} */
 		}
 		totalBytesSent += bytesSent;
 		DEBUG_PRINT(YELLOW, "Total bytes sent: " << totalBytesSent);

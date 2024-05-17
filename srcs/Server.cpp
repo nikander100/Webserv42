@@ -190,8 +190,8 @@ bool Server::handlesClient(const int &client_fd) {
 
 void Server::acceptNewConnection() {
 	try {
-		// Accept a new client connection and create a ClientSocket
-		std::unique_ptr<ClientSocket> newClient = _socket.accept();
+		// Accept a new client connection and create a Client
+		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept());
 
 		// Get the client's file descriptor before moving the client
 		int ClientFd = newClient->getFd();
@@ -207,7 +207,8 @@ void Server::acceptNewConnection() {
 	}
 }
 
-ClientSocket &Server::_getClient(const int &client_fd) {
+// returns a reference to the client object with the given fd.
+Client &Server::_getClient(const int &client_fd) {
 	for (auto &client : _clients) {
 		if (client->getFd() == client_fd) {
 			return *client;
@@ -220,7 +221,7 @@ void Server::_removeClient(int client_fd) {
 	_clients.erase(
 		std::remove_if(
 			_clients.begin(), _clients.end(),
-			[client_fd](const std::unique_ptr<ClientSocket>& client) {
+			[client_fd](const std::unique_ptr<Client>& client) {
 				return client->getFd() == client_fd;}
 		),
 		_clients.end()
@@ -230,7 +231,7 @@ void Server::_removeClient(int client_fd) {
 void Server::handleRequest(const int &client_fd) {
 	// Handle requests from clients
 	std::string responseContent;
-	ClientSocket& client = _getClient(client_fd);
+	Client& client = _getClient(client_fd);
 
 	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
 

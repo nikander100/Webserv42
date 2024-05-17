@@ -14,6 +14,6 @@ public:
 
 private:
 	EpollManager(); // Make constructor private
-	~EpollManager();
+	virtual ~EpollManager();
 	int _epollFd;
 };

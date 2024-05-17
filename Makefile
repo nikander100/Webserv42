@@ -4,10 +4,12 @@ NICKNAME := webServ
 SRCS_DIR := srcs
 SRCS := Socket.cpp \
 		ServerSocket.cpp \
-		ClientSocket.cpp \
 		Server.cpp \
+		ClientSocket.cpp \
+		Client.cpp \
 		ServerContainer.cpp \
 		RequestHandler.cpp \
+		HttpRequest.cpp \
 		EpollManager.cpp \
 		main.cpp \
 		utils.cpp \
