@@ -1,4 +1,4 @@
-#include "parse.hpp"
+#include "Parse.hpp"
 
 Parse::Parse() : _exit(false)
 {
@@ -114,7 +114,8 @@ void	Parse::printServers()
 
 void	Parse::setServers()
 {
-	// Server	server;
+	// std::unique_ptr<Server> testServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
+
 	// size_t	i;
 
 	// i = 0;
@@ -131,6 +132,7 @@ void	Parse::setServers()
 					// std::cout << server.getServerName() << std::endl;
 				}
 			}
+			// _servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
 		}
 	// }
 	

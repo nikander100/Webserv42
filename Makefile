@@ -7,14 +7,13 @@ SRCS := Socket.cpp \
 		Server.cpp \
 		ClientSocket.cpp \
 		Client.cpp \
+		Parse.cpp \
 		ServerContainer.cpp \
 		RequestHandler.cpp \
 		HttpRequest.cpp \
 		EpollManager.cpp \
 		main.cpp \
 		utils.cpp \
-		checkbalance.cpp \
-		readfile.cpp \
 
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 

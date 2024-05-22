@@ -6,7 +6,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
-			"args": ["test"], // command line arguments go here
+			"args": ["config_files/blank.conf"], // command line arguments go here
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
@@ -43,14 +43,14 @@
 			"preLaunchTask": "reBuild", // name of the task to run before debugging
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
-		{
-			"type": "lldb",
-			"request": "launch",
-			"name": "Launch",
-			"program": "${workspaceFolder}/webServ",
-			"args": ["config_files/blank.conf"],
-			"cwd": "${workspaceFolder}"
-		},
+		// {
+		// 	"type": "lldb",
+		// 	"request": "launch",
+		// 	"name": "Launch",
+		// 	"program": "${workspaceFolder}/webServ",
+		// 	"args": ["config_files/blank.conf"],
+		// 	"cwd": "${workspaceFolder}"
+		// },
 		{
 			"name": "C/C++ Runner: Debug Session",
 			"type": "cppdbg",

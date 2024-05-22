@@ -32,6 +32,8 @@ void RequestHandler::addHeaders() {
 		{".jpg", "image/jpeg"},
 		{".ico", "image/x-icon"},
 		{".css", "text/css"},
+		{".svg", "image/svg+xml"},
+		{".js", "application/javascript"}
 		// Add more MIME types as needed
 	};
 
