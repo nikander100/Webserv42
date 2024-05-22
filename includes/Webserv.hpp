@@ -19,6 +19,7 @@
 # include <algorithm>
 # include <iterator>
 # include <list>
+# include <stack>
 
 /* Network */
 # include <sys/socket.h>
@@ -41,15 +42,10 @@ constexpr uint16_t TEST_PORT = 8081;
 
 #include "AnsiCodes.hpp"
 #include "Debug.hpp"
-#include "Server.hpp"
-#include "ServerContainer.hpp"
-
-#include <algorithm>
-#include <stack>
 
 
 //part of reading config file
-std::vector<std::string>	readfile(char **argv);
+std::vector<std::string>	readfile(char **argv); //TODO needs own class
 
 //part of validation
-bool checkbalance(std::vector<std::string> conf);
+bool checkbalance(std::vector<std::string> conf); //TODO needs own class

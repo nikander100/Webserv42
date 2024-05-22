@@ -33,7 +33,7 @@ public:
 
 private:
 	// Private member variabless
-	std::vector<Server> _servers;
+	std::vector<std::unique_ptr<Server>> _servers;
 	std::vector<std::string> raw_conf_file;
 	bool _exit;
 	std::vector<std::vector<std::string>> _servers_conf;

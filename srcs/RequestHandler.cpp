@@ -1,4 +1,4 @@
-#include "TestRequestHandler.hpp"
+#include "RequestHandler.hpp"
 
 RequestHandler::RequestHandler(){
 }
@@ -7,14 +7,14 @@ RequestHandler::~RequestHandler(){
 }
 
 /* 
+  TODO: Request message to be parsed here.
   Outcome:
   1- string _request_line[3] filled with 1-Method 2-Path 3-HTTP Ver.
   2- map<string, string> _request_headers filled with header titles and header info. as key/value.
   3- string _request_body filled with request body (if expected).
 */
-RequestHandler::RequestHandler(std::string requestContent)
-{
-	std::stringstream ss(requestContent);
+RequestHandler::RequestHandler(std::string request_content) {
+	std::stringstream ss(request_content);
 
 	for (auto i = 0; i != 3; ++i)
 		ss >> _requestLine[i];
@@ -32,6 +32,8 @@ void RequestHandler::addHeaders() {
 		{".jpg", "image/jpeg"},
 		{".ico", "image/x-icon"},
 		{".css", "text/css"},
+		{".svg", "image/svg+xml"},
+		{".js", "application/javascript"}
 		// Add more MIME types as needed
 	};
 
@@ -43,12 +45,11 @@ void RequestHandler::addHeaders() {
 	_responseHeader.append("Content-Length: " + std::to_string(_bodyLength) + "\r\n");
 	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
 }
-void    RequestHandler::buildResponse()
-{
-
-	buildBody();
-	addStatus();
-	addHeaders();
+void RequestHandler::buildResponse() {
+	if (buildBody()) {
+		addStatus();
+		addHeaders();
+	}
 	// Temp for testing only
 }
 
@@ -63,41 +64,29 @@ size_t RequestHandler::getBodyLength() {
 }
 
 /* Check if there is any error and assign the correct status code to response message */
-void RequestHandler::addStatus()
-{
+void RequestHandler::addStatus() {
 	// For testing Assume no errors for now.
 	_responseHeader.append("HTTP/1.1 200 OK\n");
 }
 
-
-size_t file_size(std::string file_path) 
-{
-	file_path = "server_dir" + file_path;
-	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
-	if (!fin) {
-		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
-		std::cerr << file_path << std::endl;
-		throw std::runtime_error("Failed to open file");
+bool RequestHandler::buildBody() {
+	try {
+		readFile();
+	} catch (const std::runtime_error& e) {
+		std::cerr << "webserv: " << e.what() << std::endl;
+		return false;
 	}
-
-	size_t size = fin.tellg();
-	return size;
+	return true;
 }
 
-void RequestHandler::buildBody()
-{
-	readFile();
-}
-
-void RequestHandler::readFile()
-{
+void RequestHandler::readFile() {
 	DEBUG_PRINT(BLUE, "requestline[1]" << _requestLine[1]);
-	std::string file_path = _requestLine[1].compare("/") == 0 ? "server_dir/home.html" : "server_dir" + _requestLine[1];
+	std::string file_path = _requestLine[1].compare("/") == 0 ? "wwwroot/server_dir/home.html" : "wwwroot/server_dir" + _requestLine[1];
 	DEBUG_PRINT(GREEN, file_path);
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		std::cerr << "webserv: open error: " << strerror(errno) << std::endl;
-		throw std::runtime_error("Failed to open file");
+		throw std::runtime_error("Failed to open file [" + file_path + "]");
 	}
 
 	_bodyLength = static_cast<size_t>(fin.tellg());

@@ -1,9 +1,14 @@
 #include "Webserv.hpp"
+#include "ServerContainer.hpp"
+#include "Parse.hpp"
 
 int	main(int ac, char **av) {
-	if (ac <= 2) {
+	if (ac == 2) {
 		try {
-			std::vector<std::string> file = readfile(av);
+			Parse parser;
+			parser.readfile(av);
+			// parser.printRawConf();
+			// std::vector<std::string> file = readfile(av);
 			//some configparser parser/serverCluster;
 			//ServerContainer manager;
 			//signals?
@@ -17,6 +22,9 @@ int	main(int ac, char **av) {
 			std::cerr << e.what() << std::endl;
 			return 1;
 		}
+		ServerContainer testing;
+		testing.setupServers();
+		testing.startServers();
 		return 0;
 	}
 	//somelogger

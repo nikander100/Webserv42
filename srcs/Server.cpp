@@ -1,33 +1,14 @@
 #include "Server.hpp"
+#include "RequestHandler.hpp"
 
-Server::Server() : _servername(""), _port(0), _host(0), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _fd(0), _autoindex(false) {
-	initErrorPages();
+// use _host(inaddrloopback) to test on 127.0.0.1 and _host(inaddrany) to test on any ip.
+Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoindex(false) {
+	// initErrorPages();
 }
 
-Server::Server(const Server& copy) : _servername(copy._servername),
-	_port(copy._port), _host(copy._host), _root(copy._root),
-	_clientMaxBodySize(copy._clientMaxBodySize), _index(copy._index), _fd(copy._fd),
-	_autoindex(copy._autoindex), _errorPages(copy._errorPages), _serveraddress(copy._serveraddress) {
-}
-
-Server& Server::operator=(const Server& rhs) {
-	if (this != &rhs) {
-		_servername = rhs._servername;
-		_port = rhs._port;
-		_host = rhs._host;
-		_root = rhs._root;
-		_clientMaxBodySize = rhs._clientMaxBodySize;
-		_index = rhs._index;
-		_fd = rhs._fd;
-		_autoindex = rhs._autoindex;
-		_errorPages = rhs._errorPages;
-		_serveraddress = rhs._serveraddress;
-	}
-	return *this;
-}
-
-Server::~Server(){
+Server::~Server() {
+	_socket.close();
 }
 
 void Server::setId(int id) {
@@ -35,37 +16,60 @@ void Server::setId(int id) {
 	_id = id;
 }
 
-void Server::setServerName(std::string &servername) {
-	checkInput(servername);
-	_servername = servername;
+int Server::getId() const {
+	return _id;
+}
+
+void Server::setServerName(std::string &server_name) {
+	checkInput(server_name);
+	_serverName = server_name;
+}
+
+std::string Server::getServerName() const {
+	return _serverName;
 }
 
 void Server::setHost(std::string &host) {
 	checkInput(host);
-	if (host == "localhost")
+	if (host == "localhost") {
 		_host = inet_addr("127.0.0.1");
-	else if (!isValidHost(host))
-		throw Error("Wrong syntax: host");
-	_host = inet_addr(host.data());
+	} else {
+		struct sockaddr_in sockaddr;
+		int result = inet_pton(AF_INET, host.c_str(), &(sockaddr.sin_addr));
+		if (!result) {
+			throw Error("Wrong syntax: host");
+		}
+		_host = inet_addr(host.c_str());
+	}
 }
 
-void Server::setPort(std::string &portStr) {
-	checkInput(portStr);
+std::string Server::getHost() const {
+	struct in_addr ip_addr;
+	ip_addr.s_addr = _host;
+	return inet_ntoa(ip_addr);
+}
+
+void Server::setPort(std::string &port_string) {
+	checkInput(port_string);
 
 	// Check if the parameter is a valid number
 	std::regex r("\\d+");
-	if (!std::regex_match(portStr, r)) {
+	if (!std::regex_match(port_string, r)) {
 		throw Error("Wrong syntax: port");
 	}
 
 	// Convert the parameter to an 16bit integer
-	uint16_t port = static_cast<uint16_t>(std::stoi(portStr));
-	if (port < 1 || port > 66535)
+	int port = std::stoi(port_string);
+	if (port < 1 || port > 65535)
 		throw Error("Wrong syntax: port");
-	_port = port;
+	_port = static_cast<uint16_t>(port);
 }
 
-void Server::setRoot(std::string &root) {
+std::string Server::getPort() const {
+	return std::to_string(_port);
+}
+
+void Server::setRoot(std::string &root) { //TODO finish function.
 	checkInput(root);
 	// check if path is file, folder or something else (this happens quite often probably also in responses/locatoins/parse, might be best to make an extra class with these functions like configUtils or have a class for config file that can check read/checkfiles/ifexistandreadable(perms)/gettype/ return the content of the file it has the path too. ) probably enum the types of files or use constexpr instead of define macro
 	//if folder set _root = root.
@@ -74,17 +78,16 @@ void Server::setRoot(std::string &root) {
 	std::string rootPathExpanded = dir + root;
 	// check if path is file, folder or something else, if not folder throw syntax error
 	_root = rootPathExpanded;
-
 }
 
-void Server::setFd(int fd) {
-	_fd = fd;
+std::string Server::getRoot() const {
+	return _root;
 }
 
-void Server::setClientMaxBodySize(std::string &clientmaxbodysize) {
-	checkInput(clientmaxbodysize);
+void Server::setClientMaxBodySize(std::string &client_max_body_size) {
+	checkInput(client_max_body_size);
 	try {
-		_clientMaxBodySize = std::stoul(clientmaxbodysize);
+		_clientMaxBodySize = std::stoul(client_max_body_size);
 	} catch (const std::invalid_argument &e){
 		throw Error("Wrong syntax: clientMaxBodySize");
 	} catch (std::out_of_range &e) {
@@ -92,9 +95,17 @@ void Server::setClientMaxBodySize(std::string &clientmaxbodysize) {
 	}
 }
 
+std::string Server::getClientMaxBodySize() const {
+	return std::to_string(_clientMaxBodySize);
+}
+
 void Server::setIndex(std::string &index) {
 	checkInput(index);
 	_index = index;
+}
+
+std::string Server::getIndex() const {
+	return _index;
 }
 
 void Server::setAutoIndex(std::string& autoindex) {
@@ -102,14 +113,36 @@ void Server::setAutoIndex(std::string& autoindex) {
 	_autoindex = (autoindex == "on") ? true : false;
 }
 
-void Server::setErrorPages(const std::map<short, std::string> &errorpages) {
-	//tobedone
+std::string Server::getAutoIndex() const {
+	return _autoindex ? "on" : "off";
+}
+
+int Server::getListenFd() const {
+	return _socket.getFd();
+}
+
+const sockaddr_in Server::getServerAddress() const {
+	return _socket.getAddress();
+}
+
+/* void Server::setErrorPages(const std::map<short, std::string> &errorpages) {
+	tobedone
 }
 
 void Server::setLocation(const std::string &locationName, const std::vector<std::string> &location) {
-	//tobedone
-}
+	tobedone
+} */
 
+///
+///
+/// end of accessors
+///
+///
+
+
+
+
+//private funcs
 void Server::initErrorPages(void) {
 	const std::vector<short> error_codes = {301, 302, 400, 401, 402, 403, 404, 405, 406, 500, 501, 502, 503, 505};
 	for (auto code : error_codes) {
@@ -117,13 +150,122 @@ void Server::initErrorPages(void) {
 	}
 }
 
-void Server::checkInput(std::string &inputcheck) {
-	if (inputcheck.back() != ';' || inputcheck.empty())
+void Server::checkInput(std::string &input_check) {
+	if (input_check.back() != ';' || input_check.empty())
 		throw Error("Token is invalid");
-	inputcheck.pop_back();
+	input_check.pop_back();
 }
 
-bool Server::isValidHost(const std::string& host) const {
-	struct sockaddr_in socketaddress;
-	return inet_pton(AF_INET, host.c_str(), &(socketaddress.sin_addr));
+
+
+
+
+
+
+
+
+void Server::setupServer() {
+	try {
+		// Initialize ServerSocket
+
+		_socket.initialize(AF_INET, SOCK_STREAM, 0, SOL_SOCKET, SO_REUSEADDR, SOMAXCONN, _host, _port);
+		// Add server socket to epoll
+		EpollManager::getInstance().addToEpoll(_socket.getFd());
+	} catch (const std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
+		exit(EXIT_FAILURE);
+	}
+}
+
+bool Server::handlesClient(const int &client_fd) {
+	for (auto &client : _clients) {
+			if (client->getFd() == client_fd) {
+				return true;
+			}
+		}
+	return false;
+}
+
+// creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
+
+void Server::acceptNewConnection() {
+	try {
+		// Accept a new client connection and create a Client
+		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept());
+
+		// Get the client's file descriptor before moving the client
+		int ClientFd = newClient->getFd();
+
+		// Add the new client to the list of clients
+		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr));
+		_clients.push_back(std::move(newClient));
+
+		// Add client socket to epoll
+		EpollManager::getInstance().addToEpoll(ClientFd);
+	} catch (const std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
+	}
+}
+
+// returns a reference to the client object with the given fd.
+Client &Server::_getClient(const int &client_fd) {
+	for (auto &client : _clients) {
+		if (client->getFd() == client_fd) {
+			return *client;
+		}
+	}
+	throw std::runtime_error("Client not found");
+}
+
+void Server::_removeClient(int client_fd) {
+	_clients.erase(
+		std::remove_if(
+			_clients.begin(), _clients.end(),
+			[client_fd](const std::unique_ptr<Client>& client) {
+				return client->getFd() == client_fd;}
+		),
+		_clients.end()
+	);
+}
+
+void Server::handleRequest(const int &client_fd) {
+	// Handle requests from clients
+	std::string responseContent;
+	Client& client = _getClient(client_fd);
+
+	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
+
+	try {
+		// Read data from client socket
+		std::string requestContent = client.recv();
+		if (requestContent.empty()) {
+			std::cout << "Client closed connection." << std::endl;
+		} else {
+			// Process request and generate response
+			RequestHandler responseGenerator(requestContent);
+			responseGenerator.buildResponse();
+			responseContent = responseGenerator.getHeader();
+			// std::cout << MAGENTA << responseContent << RESET << std::endl;
+			if (responseContent.empty()) { // TODO temp check to be changed
+				std::cerr << "Error generating response." << std::endl;
+				return;
+			}
+			responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
+
+			// Send response to client
+			client.send(responseContent);
+		}
+	} 
+	catch (const std::runtime_error& e) {
+		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
+	}
+
+	// Remove clientFd from epoll
+	EpollManager::getInstance().removeFromEpoll(client_fd);
+
+	// Close connection
+	client.close();
+
+	// Remove client from list(vector) of clients
+	_removeClient(client_fd);
 }
