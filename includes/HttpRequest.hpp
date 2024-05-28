@@ -11,7 +11,7 @@ enum Method {
  * @brief Enumeration representing the different parsing states during HTTP request parsing.
  */
 enum State {
-	Start, Request_Line_Parsed, Header_Parsed, Reading_Body_Data, Reading_Chunk_Size,
+	Start, Method_Line_Parsed, Header_Parsed, Reading_Body_Data, Reading_Chunk_Size,
 	Reading_Chunk_Data, Complete
 };
 
@@ -26,6 +26,7 @@ class HttpRequest
 		virtual ~HttpRequest();
 
 		bool feed(const std::string &data);
+		bool parsingComplete() const;
 		void print() const;
 
 	protected:
@@ -39,7 +40,7 @@ class HttpRequest
 		std::string _body;
 
 	private:
-		bool parseRequestLine(const std::string &line);
+		bool parseMethodLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		Method parseMethod(const std::string &method);
 		// void parseBodyData(const std::string &data, size_t &pos);

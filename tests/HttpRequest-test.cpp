@@ -11,15 +11,16 @@
 
 #define PORT 9221
 
-// compile with g++ -Wall -Wextra -Werror -std=c++20 HttpRequest-test.cpp ../srcs/HttpRequest.cpp -o httpRequestTest.out
+// compile with g++ -g -Wall -Wextra -Werror -std=c++20 HttpRequest-test.cpp ../srcs/HttpRequest.cpp -o httpRequestTest.out
 // usage ./httpRequestTest.out > HttpRequest.txt
 int main(int argc, char **argv)
 {
+	(void)argc;
+	(void)argv;
 	struct sockaddr_in serverAddress;
 	int webserv_fd;
 	int accept_socket;
 	size_t read_size;
-	long    address_size;
 	char    result_buffer[1024];
 
 	int option_value = 1;
@@ -63,11 +64,11 @@ int main(int argc, char **argv)
 		// std::cout << read_size << std::endl;
 		if(read_size > 0)
 		{   
-			request.feed(result_buffer, read_size);
+			request.feed(std::string(result_buffer, read_size));
 			memset(result_buffer, 0, sizeof(result_buffer));
-			request.printMessage();
+			request.print();
 		}
-		if(request.parsingCompleted())
+		if(request.parsingComplete())
 		{
 			close(accept_socket);
 			std::cout << "Parsing completed !" << std::endl;

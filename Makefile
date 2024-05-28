@@ -34,7 +34,10 @@ RED := \033[31;1m
 BOLD := \033[1m
 RESET := \033[0m
 
-all: $(NAME)
+# Default debug level
+DEBUG_LEVEL = 0
+
+all: print_info $(NAME)
 
 run: all
 	./$(NAME) test
@@ -46,7 +49,7 @@ $(NAME): $(OBJS)
 
 $(OBJ_DIR)/%.o: $(SRCS_DIR)/%.cpp $(INC_DIR)*.hpp
 	$(DIR_DUP)
-	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+	@$(CXX) $(CXXFLAGS) $(CPPFLAGS) -DDEBUG=$(DEBUG_LEVEL) -c $< -o $@
 	$(info CREATED $@)
 
 open: $(NAME)
@@ -61,5 +64,9 @@ fclean: clean
 	@rm -f $(NAME)
 
 re: fclean all
+
+# Rule to print info
+print_info:
+	@echo "$(RED)$(BOLD)Compiling with DEBUG=$(DEBUG_LEVEL)$(RESET)"
 
 .PHONY: all clean fclean re open run

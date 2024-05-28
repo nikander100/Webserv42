@@ -1,10 +1,14 @@
-#include "HttpRequest.hpp"
+#include "../includes/HttpRequest.hpp"
 
 HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _verMajor(0), _verMinor(0),
 _contentLength(0), _chunkSize(0) {
 }
 
 HttpRequest::~HttpRequest() {
+}
+
+bool HttpRequest::parsingComplete() const {
+	return _state == Complete;
 }
 
 Method HttpRequest::parseMethod(const std::string &method) {
@@ -14,30 +18,37 @@ Method HttpRequest::parseMethod(const std::string &method) {
 	return UNKNOWN;
 }
 
-bool HttpRequest::parseRequestLine(const std::string &line) {
-	std::regex pattern(R"(^(\w+)\s+(\S+)\s+HTTP/(\d)\.(\d)$)");
+bool HttpRequest::parseMethodLine(const std::string &line) {
+	std::regex pattern(R"(^(\w+)\s+(\S+)\s+HTTP/(\d)\.(\d)\r?$)");
 	std::smatch match;
 
 	if (std::regex_match(line, match, pattern)) {
-		_method = parseMethod(match[1]);
-		_path = match[2];
-		_verMajor = std::stoi(match[3]);
-		_verMinor = std::stoi(match[4]);
+		_method = parseMethod(match.str(1));
+		_path = match.str(2);
+		_verMajor = std::stoi(match.str(3));
+		_verMinor = std::stoi(match.str(4));
 		return _method != UNKNOWN;
 	}
 	return false;
 }
 
 bool HttpRequest::parseHeader(const std::string &line) {
-	std::regex pattern(R"(^([^:]+):\s*(.+)$)");
-	std::smatch match;
-
-	if (std::regex_match(line, match, pattern)) {
-		_headers[match[1]] = match[2];
-		if (match[1] == "Content-Length") {
-			_contentLength = std::stoul(match[2]);
+	// Check if the string ends with '\r'
+	if (!line.empty() && line.back() == '\r') {
+		// Remove the '\r' character from the end of the string
+		std::string temp = line.substr(0, line.size() - 1);
+		// Now continue with parsing the modified string
+		// Use the modified string for matching
+		std::regex pattern(R"(([^:]+):\s*([^\r]+))");
+		std::smatch match;
+		
+		if (std::regex_match(temp, match, pattern)) {
+			_headers[match[1]] = match[2];
+			if (match[1] == "Content-Length") {
+				_contentLength = std::stoul(match[2]);
+			}
+			return true;
 		}
-		return true;
 	}
 	return false;
 }
@@ -55,85 +66,116 @@ void HttpRequest::parseChunkData(const std::string& data, size_t& pos) {
 	}
 }
 
-// void HttpRequest::parseBodyData(const std::string& data, size_t& pos) {
-// 	if (_contentLength > 0 && pos + _contentLength <= data.size()) {
-// 		_body = data.substr(pos, _contentLength);
-// 		pos += _contentLength;
-// 		_state = Complete;
-// 	} else {
-// 		std::cerr << "Invalid Content-Length or incomplete body" << std::endl;
-// 		_state = Complete;
-// 	}
-// }
-
+void HttpRequest::print() const {
+	std::cout << "Method: ";
+	switch (_method) {
+		case GET: std::cout << "GET"; break;
+		case POST: std::cout << "POST"; break;
+		case DELETE: std::cout << "DELETE"; break;
+		default: std::cout << "UNKNOWN"; break;
+	}
+	std::cout << "\nPath: " << _path << "\n";
+	std::cout << "HTTP Version: " << static_cast<int>(_verMajor) << "." << static_cast<int>(_verMinor) << "\n";
+	std::cout << "Headers:\n";
+	for (const auto& header : _headers) {
+		std::cout << header.first << ": " << header.second << "\n";
+	}
+	std::cout << "Body:\n" << _body << "\n";
+}
 
 bool HttpRequest::feed(const std::string &data) {
 	std::istringstream stream(data);
 	std::string line;
 	size_t pos = 0;
 
-	if (_state == Start) {
-		if (std::getline(stream, line) && parseRequestLine(line)) {
-			_state = Request_Line_Parsed;
-		} else {
-			std::cerr << "Invalid request line" << std::endl;
-			return false;
-		}
-	}
+	while (_state != Complete) {
+		
+		switch (_state) {
+			case Start:
+				if (!std::getline(stream, line)) {
+					std::cerr << "Failed to read request line" << std::endl;
+					return false;
+					// instead of returning set error flag so later can reset the request object.
+				}
+				pos += line.size() + 1; // +1 for the newline character
 
-	while (std::getline(stream, line) && line != "\r") {
-		pos += line.size() + 1; // +1 for the newline character
-		if (_state == Request_Line_Parsed && parseHeader(line)) {
-			_state = Header_Parsed;
-		} else {
-			std::cerr << "Invalid header" << std::endl;
-			return false;
-		}
-	}
-
-	if (_state == Header_Parsed) {
-		pos += 2; // Skip the \r\n after the headers
-		if (_headers.find("Transfer-Encoding") != _headers.end() && _headers["Transfer-Encoding"] == "chunked") {
-			_state = Reading_Chunk_Size;
-		} else if (_contentLength > 0) {
-			_state = Reading_Body_Data;
-		} else {
-			_state = Complete;
-		}
-	}
-
-	if (_state == Reading_Body_Data) {
-		// parseBodyData(data, pos);
-		if (_contentLength > 0 && pos + _contentLength <= data.size()) {
-		_body = data.substr(pos, _contentLength);
-		pos += _contentLength;
-		_state = Complete;
-	} else {
-		std::cerr << "Invalid Content-Length or incomplete body" << std::endl;
-		_state = Complete;
-		}
-	}
-
-	while (_state == Reading_Chunk_Size || _state == Reading_Chunk_Data) {
-		if (_state == Reading_Chunk_Size) {
-			std::getline(stream, line);
-			pos += line.size() + 1; // +1 for the newline character
-			if (!parseChunkSize(line)) {
-				std::cerr << "Invalid chunk size" << std::endl;
-				return false;
-			}
-			if (_chunkSize == 0) {
-				_state = Complete;
+				if (parseMethodLine(line)) {
+					_state = Method_Line_Parsed;
+				} else {
+					std::cerr << "Invalid request line" << std::endl;
+					// instead of returning set error flag so later can reset the request object.
+					// send bad method response.
+					return false;
+				}
 				break;
-			}
-			_state = Reading_Chunk_Data;
+
+			case Method_Line_Parsed:
+				if (!std::getline(stream, line)) {
+					std::cerr << "Failed to read request line" << std::endl;
+					return false;
+					// instead of returning set error flag so later can reset the request object.
+				}
+				pos += line.size() + 1; // +1 for the newline character
+				
+				if (line == "\r") {
+					_state = Header_Parsed;
+				} else if (!parseHeader(line)) {
+					std::cerr << "Invalid header" << std::endl;
+					// instead of returning set error flag so later can reset the request object.
+					// send bad method response.
+					return false;
+				}
+				break;
+
+			case Header_Parsed:
+				pos += 1; // Skip the \r\n after the headers
+				if (_headers.find("Transfer-Encoding") != _headers.end() && _headers["Transfer-Encoding"] == "chunked") {
+					_state = Reading_Chunk_Size;
+				} else if (_contentLength > 0) {
+					_state = Reading_Body_Data;
+				} else {
+					_state = Complete;
+				}
+				break;
+
+			case Reading_Body_Data:
+				if (_contentLength > 0 && pos + _contentLength <= data.size()) {
+					_body = data.substr(pos, _contentLength);
+					pos += _contentLength;
+					_state = Complete;
+				} else {
+					std::cerr << "Invalid Content-Length or incomplete body" << std::endl;
+					_state = Complete;
+				}
+				break;
+			
+			case Reading_Chunk_Size:
+				if (!parseChunkSize(line)) {
+					std::cerr << "Invalid chunk size" << std::endl;
+					return false;
+				}
+				if (_chunkSize == 0) {
+					_state = Complete;
+				} else {
+					_state = Reading_Chunk_Data;
+				}
+				break;
+
+			case Reading_Chunk_Data:
+				parseChunkData(data, pos);
+				_state = Reading_Chunk_Size;
+				break;
+
+			default:
+				std::cerr << "Unkown state" << std::endl;
+				return false;
+				// instead of returning set error flag so later can reset the request object.
+					// send bad ... response.
+
+		}
+		if (_state == Complete) {
+			break;
 		}
 	}
-
-	if (_state == Reading_Chunk_Data) {
-		parseChunkData(data, pos);
-		_state = Reading_Chunk_Size;
-	}
-
 	return true;
 }
