@@ -1,5 +1,21 @@
 #include "../includes/HttpRequest.hpp"
 
+// bool HttpRequest::isValidUri(const std::string &uri) {
+//     const std::string allowedChars = 
+//         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+//         "abcdefghijklmnopqrstuvwxyz"
+//         "0123456789"
+//         "-._~:/?#[]@!$&'()*+,;=";
+
+//     for (char c : uri) {
+//         if (allowedChars.find(c) == std::string::npos) {
+//             return false;
+//         }
+//     }
+
+//     return true;
+// }
+
 HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _verMajor(0), _verMinor(0),
 _contentLength(0), _chunkSize(0) {
 }
@@ -18,15 +34,20 @@ Method HttpRequest::parseMethod(const std::string &method) {
 	return UNKNOWN;
 }
 
+
 bool HttpRequest::parseMethodLine(const std::string &line) {
-	std::regex pattern(R"(^(\w+)\s+(\S+)\s+HTTP/(\d)\.(\d)\r?$)");
+	std::regex pattern(R"(^(\w+)\s+(([^?#]*)(\?[^#]*)?(#.*)?)\s+HTTP/(\d)\.(\d)\r?$)");
 	std::smatch match;
 
 	if (std::regex_match(line, match, pattern)) {
-		_method = parseMethod(match.str(1));
-		_path = match.str(2);
-		_verMajor = std::stoi(match.str(3));
-		_verMinor = std::stoi(match.str(4));
+		_method = parseMethod(match[1]);
+		_path = match[3];
+		_query = match[4].length() > 1 ? match.str(4).substr(1) : ""; // remove leading '?'
+		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
+		_verMajor = std::stoi(match[6]);
+		_verMinor = std::stoi(match[7]);
+
+		// TODO: validate path. as regex already checks query and fragment.
 		return _method != UNKNOWN;
 	}
 	return false;
@@ -75,6 +96,8 @@ void HttpRequest::print() const {
 		default: std::cout << "UNKNOWN"; break;
 	}
 	std::cout << "\nPath: " << _path << "\n";
+	std::cout << "Query: " << _query << "\n";
+	std::cout << "Fragment: " << _fragment << "\n";
 	std::cout << "HTTP Version: " << static_cast<int>(_verMajor) << "." << static_cast<int>(_verMinor) << "\n";
 	std::cout << "Headers:\n";
 	for (const auto& header : _headers) {
@@ -116,7 +139,7 @@ bool HttpRequest::feed(const std::string &data) {
 					// instead of returning set error flag so later can reset the request object.
 				}
 				pos += line.size() + 1; // +1 for the newline character
-				
+
 				if (line == "\r") {
 					_state = Header_Parsed;
 				} else if (!parseHeader(line)) {

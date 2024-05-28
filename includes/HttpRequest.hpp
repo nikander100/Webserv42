@@ -33,6 +33,8 @@ class HttpRequest
 		State _state;
 		Method _method;
 		std::string _path;
+		std::string _query;
+		std::string _fragment; // Fragment is client side only but we store it for data collection purposes.
 		u_int8_t _verMajor, _verMinor;
 		size_t _contentLength;
 		size_t _chunkSize;
