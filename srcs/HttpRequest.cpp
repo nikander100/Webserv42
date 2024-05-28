@@ -35,6 +35,10 @@ Method HttpRequest::parseMethod(const std::string &method) {
 }
 
 
+
+//currently up to standard RFC1945
+//new uri is RFC3986 but we only have to comply with the rfc for 
+//http1.0/1.1
 bool HttpRequest::parseMethodLine(const std::string &line) {
 	std::regex pattern(R"(^(\w+)\s+(([^?#]*)(\?[^#]*)?(#.*)?)\s+HTTP/(\d)\.(\d)\r?$)");
 	std::smatch match;
@@ -46,7 +50,7 @@ bool HttpRequest::parseMethodLine(const std::string &line) {
 		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
 		_verMajor = std::stoi(match[6]);
 		_verMinor = std::stoi(match[7]);
-
+		// if !validuri(path) etc... return false..
 		// TODO: validate path. as regex already checks query and fragment.
 		return _method != UNKNOWN;
 	}
