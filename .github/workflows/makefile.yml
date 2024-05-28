@@ -45,6 +45,9 @@ jobs:
         name: compiled-files
         path: ./artifact-dir
 
+    - name: add permission to execute
+      run: chmod +x ./artifact-dir/testServer.out
+
     - name: Start server
       run: ./artifact-dir/testServer.out test
 
