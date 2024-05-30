@@ -21,6 +21,13 @@ class Client {
 		std::string recv();
 		void close();
 
+		// request funcs
+		HttpRequest &getRequest();
+		void feed(const std::string &data);
+		bool requestState() const;
+		bool requestError() const;
+		void clearRequest();
+		bool keepAlive() const;
 	
 	private:
 		std::unique_ptr<ClientSocket> _socket;

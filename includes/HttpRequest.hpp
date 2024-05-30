@@ -28,10 +28,26 @@ class HttpRequest
 		bool feed(const std::string &data);
 		bool parsingComplete() const;
 		void print() const;
+		void reset();
+		int errorCode() const;
+		bool keepAlive() const;
 
-	protected:
+		const Method &getMethod() const;
+		const std::string &getPath() const;
+		const std::string &getQuery() const;
+		const std::string &getFragment() const;
+		const std::string &getHeader(const std::string &key) const;
+		// std::unordered_map<std::string, std::string> getHeaders() const;
+
+
+	private:
 		State _state;
 		Method _method;
+		int _errorCode;
+		bool _flagRequestMethodAndHeaderDone; // can possibly be removed
+		bool _flagBody; // can possibly be removed
+		bool _flagBodyDone; // can possibly be removed
+
 		std::string _path;
 		std::string _query;
 		std::string _fragment; // Fragment is client side only but we store it for data collection purposes.
@@ -40,13 +56,16 @@ class HttpRequest
 		size_t _chunkSize;
 		std::unordered_map<std::string, std::string> _headers;
 		std::string _body;
+		// std::vector<std::string> _bodyChunks;
+		// std::vector<u_int8_t> body;
 
-	private:
 		bool isValidUri(const std::string &uri);
-		bool parseMethodLine(const std::string &line);
+		bool isValidToken(const std::string &token);
+		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		Method parseMethod(const std::string &method);
 		// void parseBodyData(const std::string &data, size_t &pos);
 		bool parseChunkSize(const std::string &line);
-		void parseChunkData(const std::string &data, size_t &pos);
+
+		// void handleHeaders();
 };

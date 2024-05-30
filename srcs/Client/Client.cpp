@@ -29,3 +29,27 @@ std::string Client::recv() {
 void Client::close() {
 	_socket->close();
 }
+
+HttpRequest &Client::getRequest() {
+	return _request;
+}
+
+void Client::feed(const std::string &data) {
+	_request.feed(data);
+}
+
+bool Client::requestState() const {
+	return _request.parsingComplete();
+}
+
+bool Client::requestError() const {
+	return _request.errorCode();
+}
+
+void Client::clearRequest() {
+	_request.reset();
+}
+
+bool Client::keepAlive() const {
+	return _request.keepAlive();
+}

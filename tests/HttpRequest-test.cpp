@@ -14,7 +14,7 @@
 // compile with g++ -g -Wall -Wextra -Werror -std=c++20 HttpRequest-test.cpp ../srcs/HttpRequest.cpp -o httpRequestTest.out
 // usage ./httpRequestTest.out > HttpRequest.txt
 
-// tet with http://localhost:9221/path/to/resource?param1=value1&param2=value2#section1
+// test with http://localhost:9221/path/to/resource?param1=value1&param2=value2#section1
 int main(int argc, char **argv)
 {
 	(void)argc;
