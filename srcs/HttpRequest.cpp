@@ -1,20 +1,5 @@
 #include "../includes/HttpRequest.hpp"
 
-// bool HttpRequest::isValidUri(const std::string &uri) {
-//     const std::string allowedChars = 
-//         "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-//         "abcdefghijklmnopqrstuvwxyz"
-//         "0123456789"
-//         "-._~:/?#[]@!$&'()*+,;=";
-
-//     for (char c : uri) {
-//         if (allowedChars.find(c) == std::string::npos) {
-//             return false;
-//         }
-//     }
-
-//     return true;
-// }
 
 HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _verMajor(0), _verMinor(0),
 _contentLength(0), _chunkSize(0) {
@@ -25,6 +10,22 @@ HttpRequest::~HttpRequest() {
 
 bool HttpRequest::parsingComplete() const {
 	return _state == Complete;
+}
+
+bool HttpRequest::isValidUri(const std::string &uri) {
+	const std::string allowedChars = 
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789"
+		"-._~:/?#[]@!$&'()*+,;=";
+
+	for (char c : uri) {
+		if (allowedChars.find(c) == std::string::npos) {
+			return false;
+		}
+	}
+
+	return true;
 }
 
 Method HttpRequest::parseMethod(const std::string &method) {
@@ -50,8 +51,13 @@ bool HttpRequest::parseMethodLine(const std::string &line) {
 		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
 		_verMajor = std::stoi(match[6]);
 		_verMinor = std::stoi(match[7]);
-		// if !validuri(path) etc... return false..
-		// TODO: validate path. as regex already checks query and fragment.
+
+		// validate path more like rfc3986 for improved security. (not required for the project but easy to implement)
+		if (isValidUri(_path)) {
+			std::cout << "Valid URI" << std::endl;
+			// TODO: set error flag for invalid uri.
+			return true;
+		}
 		return _method != UNKNOWN;
 	}
 	return false;

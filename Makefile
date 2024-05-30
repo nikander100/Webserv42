@@ -2,16 +2,16 @@ NAME := testServer.out
 NICKNAME := webServ
 
 SRCS_DIR := srcs
-SRCS := Socket.cpp \
-		ServerSocket.cpp \
-		Server.cpp \
-		ClientSocket.cpp \
-		Client.cpp \
-		Parse.cpp \
-		ServerContainer.cpp \
+SRCS := Socket/Socket.cpp \
+		Socket/ServerSocket.cpp \
+		Socket/ClientSocket.cpp \
+		Server/Server.cpp \
+		Client/Client.cpp \
+		Parser/Parse.cpp \
+		EpollManager/EpollManager.cpp \
+		ServerManager/ServerManager.cpp \
 		RequestHandler.cpp \
 		HttpRequest.cpp \
-		EpollManager.cpp \
 		main.cpp \
 		utils.cpp \
 
@@ -21,13 +21,19 @@ OBJ_DIR := obj
 OBJS := $(patsubst $(SRCS_DIR)/%.cpp,$(OBJ_DIR)/%.o,$(SRCS))
 
 INC_DIR := includes/
+INC_SUBDIRS := $(shell find $(SRCS_DIR) -type d)
 
 CXX := g++
 CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
-CPPFLAGS := -I$(INC_DIR)
+CPPFLAGS := -I$(INC_DIR) $(addprefix -I, $(INC_SUBDIRS))
 
+# gets all the .hpp files to check for changes and recompile affected files
+HPP_FILES := $(shell find $(SRCS_DIR) -name "*.hpp") $(wildcard $(INC_DIR)*.hpp)
+
+# make obj directory
 DIR_DUP = mkdir -p $(@D)
 
+# color codes
 GREEN := \033[32;1m
 YELLOW := \033[33;1m
 RED := \033[31;1m

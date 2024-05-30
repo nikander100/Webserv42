@@ -42,6 +42,7 @@ class HttpRequest
 		std::string _body;
 
 	private:
+		bool isValidUri(const std::string &uri);
 		bool parseMethodLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		Method parseMethod(const std::string &method);
