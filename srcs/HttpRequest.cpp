@@ -114,9 +114,13 @@ bool HttpRequest::parseHeader(const std::string &line) {
 
 			// possibly move this to a separate function/state..
 			if (key == "content-length") {
-				_contentLength = std::stoul(value);
-				if (_contentLength < 0) {
-					std::cerr << "Invalid content-length" << std::endl;
+				try {
+					_contentLength = std::stoul(value);
+				} catch (const std::invalid_argument& ia) {
+					std::cerr << "Invalid content-length: " << ia.what() << std::endl;
+					return false;
+				} catch (const std::out_of_range& oor) {
+					std::cerr << "Content-length out of range: " << oor.what() << std::endl;
 					return false;
 				}
 			}
