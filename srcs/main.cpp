@@ -11,7 +11,7 @@ int	main(int ac, char **av) {
 			// parser.printRawConf();
 			// std::vector<std::string> file = readfile(av);
 			//some configparser parser/serverCluster;
-			//ServerContainer manager;
+			//ServerManager manager;
 			//signals?
 			
 			// conf = (ac == 1 ? "somedefault/config.conf" : av[1]);
@@ -23,7 +23,7 @@ int	main(int ac, char **av) {
 			std::cerr << e.what() << std::endl;
 			return 1;
 		}
-		ServerContainer testing;
+		ServerManager testing;
 		testing.setupServers();
 		testing.startServers();
 		return 0;

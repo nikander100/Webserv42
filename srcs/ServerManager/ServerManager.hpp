@@ -3,22 +3,21 @@
 #include "Webserv.hpp"
 #include "Server.hpp"
 #include "EpollManager.hpp"
-#include "RequestHandler.hpp"
 
 /**
- * @brief The ServerContainer class is the main program that contains and manages the servers.
+ * @brief The ServerManager class is the main program that contains and manages the servers.
  * 
  * This class is responsible for managing the servers in the program. It provides the necessary
- * functionality to create, start, stop, and manage the servers. The ServerContainer class acts
+ * functionality to create, start, stop, and manage the servers. The ServerManager class acts
  * as a container for the servers and provides an interface for interacting with them.
  */
-class ServerContainer {
+class ServerManager {
 public:
 	// Constructor
-	ServerContainer();
+	ServerManager();
 
 	// Destructor
-	virtual ~ServerContainer();
+	virtual ~ServerManager();
 
 	// addServer();
 

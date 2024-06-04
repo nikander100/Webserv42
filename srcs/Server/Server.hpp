@@ -1,6 +1,6 @@
 #pragma once
 #include "Webserv.hpp"
-#include "RequestHandler.hpp"
+#include "HttpResponse.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
 #include "Client.hpp"
@@ -82,6 +82,9 @@ public:
 	bool handlesClient(const int &clientFd);
 	void acceptNewConnection();
 	void handleRequest(const int& clientFd);
+	//canbeprivate?
+	// void sendResponse()
+
 
 
 	class Error : public std::exception {

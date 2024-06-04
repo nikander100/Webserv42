@@ -1,6 +1,5 @@
 #include "Client.hpp"
 
-
 Client::Client(std::unique_ptr<ClientSocket> socket)
 	: _socket(std::move(socket)), _httpRequestLength(0) {
 }
@@ -20,10 +19,12 @@ void Client::send(const std::string &data) {
 	_socket->send(data);
 }
 
-std::string Client::recv() {
-	// std::string data = _socket->recv();
-	// _httpRequestLength += data.length();
-	return _socket->recv();
+void Client::recv() {
+	std::string data = _socket->recv();
+	if (data.empty()) {
+		throw std::runtime_error("Client disconnected");
+	}
+	feed(data);
 }
 
 void Client::close() {

@@ -10,7 +10,7 @@ SRCS := Socket/Socket.cpp \
 		Parser/Parse.cpp \
 		EpollManager/EpollManager.cpp \
 		ServerManager/ServerManager.cpp \
-		RequestHandler.cpp \
+		HttpResponse.cpp \
 		HttpRequest.cpp \
 		main.cpp \
 		utils.cpp \

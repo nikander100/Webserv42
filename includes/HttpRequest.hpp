@@ -68,4 +68,7 @@ class HttpRequest
 		bool parseChunkSize(const std::string &line);
 
 		// void handleHeaders();
+
+		// utilarian functions
+		std::string method() const;
 };

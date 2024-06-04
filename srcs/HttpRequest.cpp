@@ -1,8 +1,8 @@
 #include "../includes/HttpRequest.hpp"
 
 
-HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _verMajor(0), _verMinor(0),
-_contentLength(0), _chunkSize(0) {
+HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _errorCode(0), _verMajor(0), _verMinor(0),
+_contentLength(0), _chunkSize(0), _headers(), _body() {
 }
 
 HttpRequest::~HttpRequest() {
@@ -57,6 +57,15 @@ Method HttpRequest::parseMethod(const std::string &method) {
 	return UNKNOWN;
 }
 
+
+std::string HttpRequest::method() const {
+	switch (_method) {
+		case GET: return "GET";
+		case POST: return "POST";
+		case DELETE: return "DELETE";
+		default: return "UNKNOWN";
+	}
+}
 
 
 //currently up to standard RFC1945
@@ -143,14 +152,8 @@ bool HttpRequest::parseChunkSize(const std::string &line) {
 }
 
 void HttpRequest::print() const {
-	std::cout << "Method: ";
-	switch (_method) {
-		case GET: std::cout << "GET"; break;
-		case POST: std::cout << "POST"; break;
-		case DELETE: std::cout << "DELETE"; break;
-		default: std::cout << "UNKNOWN"; break;
-	}
-	std::cout << "\nPath: " << _path << "\n";
+	std::cout << "Method: " << method() << "\n";
+	std::cout << "Path: " << _path << "\n";
 	std::cout << "Query: " << _query << "\n";
 	std::cout << "Fragment: " << _fragment << "\n";
 	std::cout << "HTTP Version: " << static_cast<int>(_verMajor) << "." << static_cast<int>(_verMinor) << "\n";
@@ -334,4 +337,19 @@ bool HttpRequest::keepAlive() const {
 		return false;
 	}
 	return false;
+}
+
+void HttpRequest::reset() {
+	_state = Start;
+	_method = UNKNOWN;
+	_errorCode = 0;
+	_path.clear();
+	_query.clear();
+	_fragment.clear();
+	_verMajor = 0;
+	_verMinor = 0;
+	_contentLength = 0;
+	_chunkSize = 0;
+	_headers.clear();
+	_body.clear();
 }

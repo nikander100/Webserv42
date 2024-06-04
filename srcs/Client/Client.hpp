@@ -18,12 +18,12 @@ class Client {
 
 		// socket function wrappers
 		void send(const std::string &data);
-		std::string recv();
+		void recv();
 		void close();
 
 		// request funcs
 		HttpRequest &getRequest();
-		void feed(const std::string &data);
+		void feed(const std::string &data); // can be made private
 		bool requestState() const;
 		bool requestError() const;
 		void clearRequest();
