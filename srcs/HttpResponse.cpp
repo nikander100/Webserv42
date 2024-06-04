@@ -94,3 +94,9 @@ void HttpResponse::readFile() {
 	DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
 	/* DEBUG END */
 }
+
+int HttpResponse::getErrorCode() const
+{
+	return _request.errorCode(); // TODO REMOVE THIS, THIS TS TEMP
+	return _errorCode;
+}

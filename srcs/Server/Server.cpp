@@ -230,6 +230,7 @@ void Server::_removeClient(int client_fd) {
 
 void Server::handleRequest(const int &client_fd) {
 	// Handle requests from clients
+	HttpResponse responseGenerator;
 	std::string responseContent;
 	Client& client = _getClient(client_fd);
 
@@ -240,7 +241,7 @@ void Server::handleRequest(const int &client_fd) {
 		client.recv();
 
 		// Process request and generate response
-		HttpResponse responseGenerator(client.getRequest());
+		responseGenerator = HttpResponse(client.getRequest()); //rename to repsonse?
 		responseGenerator.buildResponse();
 		responseContent = responseGenerator.getHeader();
 		if (responseContent.empty()) { // TODO temp check to be changed
@@ -258,7 +259,8 @@ void Server::handleRequest(const int &client_fd) {
 	}
 
 	// Check if keep-alive is false before closing the connection
-	if (!client.keepAlive()) {
+	// TODO client.requestError() might not have to be checked here.
+	if (!client.keepAlive() || client.requestError() || responseGenerator.getErrorCode()){
 		// Remove clientFd from epoll
 		EpollManager::getInstance().removeFromEpoll(client_fd);
 
