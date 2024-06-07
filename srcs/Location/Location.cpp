@@ -2,7 +2,7 @@
 
 Location::Location()
 	: _path(""),
-	  _root(""),
+	  _root("/"),
 	  _autoIndex(false),
 	  _index(""),
 	  _allowedMethods({

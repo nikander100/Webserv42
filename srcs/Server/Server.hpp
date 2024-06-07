@@ -69,7 +69,7 @@ public:
 	void setErrorPage(HttpStatusCodes key, std::string path);
 
 	// Accessors for the 'locations' member variable.
-	// const std::vector<Location> &getLocations(void);
+	const std::unordered_map<std::string, Location> &getLocations(void);
 	// const std::vector<Location>::iterator getlocationByKey(std::string key);
 	void setLocation(const std::string &path, std::vector<std::string> &location);
 
@@ -124,6 +124,9 @@ private:
 	std::vector<std::unique_ptr<Client>> _clients;
 	Client &_getClient(const int &clientFd);
 	void _removeClient(int clientFd);
+
+	//newcodelocation&errorpages
+	bool isValidLocations(void) const;
 	
 
 

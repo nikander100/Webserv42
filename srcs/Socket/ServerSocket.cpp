@@ -32,7 +32,7 @@ void ServerSocket::initialize(int domain, int type, int protocol, int level, int
 	if (setsockopt(_fd, level, optname, &optionValue, sizeof(int)) == -1) {
 		throw std::runtime_error("Error setting socket option: " + std::string(strerror(errno)));
 	}
-
+	
 	// Initialize server address
 	memset(&_address, 0, sizeof(_address));
 	_address.sin_family = domain;
@@ -40,7 +40,7 @@ void ServerSocket::initialize(int domain, int type, int protocol, int level, int
 	_address.sin_port = htons(port);
 
 	if (bind(_fd, reinterpret_cast<const struct sockaddr*>(&_address), sizeof(_address)) == -1) {
-		throw std::runtime_error("Error binding socket: " + std::string(strerror(errno)));
+		throw std::runtime_error("Error binding server socket: " + std::string(strerror(errno)));
 	}
 
 	if (listen(_fd, backlog) == -1) {

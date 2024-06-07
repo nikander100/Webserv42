@@ -1,6 +1,6 @@
 #include "Server.hpp"
 
-// use _host(inaddrloopback) to test on 127.0.0.1 and _host(inaddrany) to test on any ip.
+// use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
 	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoindex(false) {
 	// initErrorPages();
@@ -133,12 +133,18 @@ void Server::setErrorPages(const std::unordered_map<HttpStatusCodes, std::string
 
 // set a specific error page
 void Server::setErrorPage(HttpStatusCodes key, std::string path) {
+	// TODO add check if file exists
 	if (key >= HttpStatusCodes::CONTINUE && key <= HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
 		_errorPages[key] = path;
 	} else {
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
 }
+
+const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() const {
+	return _errorPages;
+}
+
 
 // TODO this logic works but i rather check with fsm and regex
 // check copilot and chatgpt and notes on suggested help 
@@ -177,6 +183,10 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 	_locations.emplace(path, std::move(newLocation));
 }
 
+const std::unordered_map<std::string, Location> &Server::getLocations() {
+	return _locations;
+}
+
 ///
 ///
 /// end of accessors
@@ -184,7 +194,22 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 ///
 
 
-
+//posibly temp -- can possibly be moved into the setlocation function unsure though
+bool Server::isValidLocations() const{
+	for (const auto &location : _locations) {
+		if (location.first.front() == '*') {
+			std::string path = location.second.getCgiPass();
+			if (path.empty()) { //|| check if file exists using checkfilefunciton.
+				return false;
+			}
+			continue;
+		}
+		if (location.first.front() != '/') {
+			return false;// check root locations
+		}
+	}
+	return true;
+}
 
 
 
