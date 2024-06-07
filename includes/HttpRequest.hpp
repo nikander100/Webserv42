@@ -3,10 +3,6 @@
 
 #include "Webserv.hpp"
 
-enum Method {
-	GET, POST, DELETE, UNKNOWN
-};
-
 /**
  * @brief Enumeration representing the different parsing states during HTTP request parsing.
  */
@@ -63,12 +59,8 @@ class HttpRequest
 		bool isValidToken(const std::string &token);
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
-		Method parseMethod(const std::string &method);
 		// void parseBodyData(const std::string &data, size_t &pos);
 		bool parseChunkSize(const std::string &line);
 
 		// void handleHeaders();
-
-		// utilarian functions
-		std::string method() const;
 };

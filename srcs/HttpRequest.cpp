@@ -1,7 +1,8 @@
 #include "../includes/HttpRequest.hpp"
+#include "Method.hpp"
 
 
-HttpRequest::HttpRequest() : _state(Start), _method(UNKNOWN), _errorCode(0), _verMajor(0), _verMinor(0),
+HttpRequest::HttpRequest() : _state(Start), _method(Method::UNKNOWN), _errorCode(0), _verMajor(0), _verMinor(0),
 _contentLength(0), _chunkSize(0), _headers(), _body() {
 }
 
@@ -50,24 +51,6 @@ bool HttpRequest::isValidToken(const std::string &token) {
 	return true;
 }
 
-Method HttpRequest::parseMethod(const std::string &method) {
-	if (method == "GET") return GET;
-	if (method == "POST") return POST;
-	if (method == "DELETE") return DELETE;
-	return UNKNOWN;
-}
-
-
-std::string HttpRequest::method() const {
-	switch (_method) {
-		case GET: return "GET";
-		case POST: return "POST";
-		case DELETE: return "DELETE";
-		default: return "UNKNOWN";
-	}
-}
-
-
 //currently up to standard RFC1945
 //new uri is RFC3986 but we only have to comply with the RFC for 
 //http1.0/1.1
@@ -76,7 +59,7 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 	std::smatch match;
 
 	if (std::regex_match(line, match, pattern)) {
-		_method = parseMethod(match[1]);
+		_method = stringToMethod(match[1]);
 		_path = match[3];
 		_query = match[4].length() > 1 ? match.str(4).substr(1) : ""; // remove leading '?'
 		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
@@ -87,7 +70,7 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 		if (!isValidUri(_path)) {
 			return false;
 		}
-		return _method != UNKNOWN;
+		return _method != Method::UNKNOWN;
 	}
 	return false;
 }
@@ -152,7 +135,7 @@ bool HttpRequest::parseChunkSize(const std::string &line) {
 }
 
 void HttpRequest::print() const {
-	std::cout << "Method: " << method() << "\n";
+	std::cout << "Method: " << methodToString(_method) << "\n";
 	std::cout << "Path: " << _path << "\n";
 	std::cout << "Query: " << _query << "\n";
 	std::cout << "Fragment: " << _fragment << "\n";
@@ -341,7 +324,7 @@ bool HttpRequest::keepAlive() const {
 
 void HttpRequest::reset() {
 	_state = Start;
-	_method = UNKNOWN;
+	_method = Method::UNKNOWN;
 	_errorCode = 0;
 	_path.clear();
 	_query.clear();
