@@ -2,6 +2,7 @@
 #pragma once
 
 #include "Webserv.hpp"
+#include "Method.hpp"
 
 /**
  * @brief Enumeration representing the different parsing states during HTTP request parsing.
