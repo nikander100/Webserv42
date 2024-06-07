@@ -1,5 +1,4 @@
 #include "Server.hpp"
-#include "HttpResponse.hpp"
 
 // use _host(inaddrloopback) to test on 127.0.0.1 and _host(inaddrany) to test on any ip.
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
@@ -58,10 +57,12 @@ void Server::setPort(std::string &port_string) {
 		throw Error("Wrong syntax: port");
 	}
 
-	// Convert the parameter to an 16bit integer
+	// Check if the port is within the valid range
 	int port = std::stoi(port_string);
 	if (port < 1 || port > 65535)
 		throw Error("Wrong syntax: port");
+	// Convert the parameter to an 16bit integer
+
 	_port = static_cast<uint16_t>(port);
 }
 
@@ -125,13 +126,56 @@ const sockaddr_in Server::getServerAddress() const {
 	return _socket.getAddress();
 }
 
-/* void Server::setErrorPages(const std::map<short, std::string> &errorpages) {
-	tobedone
+// set all error pages in one go -- possibly redundant
+void Server::setErrorPages(const std::unordered_map<HttpStatusCodes, std::string> &errorpages) {
+	_errorPages = errorpages;
 }
 
-void Server::setLocation(const std::string &locationName, const std::vector<std::string> &location) {
-	tobedone
-} */
+// set a specific error page
+void Server::setErrorPage(HttpStatusCodes key, std::string path) {
+	if (key >= HttpStatusCodes::CONTINUE && key <= HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
+		_errorPages[key] = path;
+	} else {
+		throw std::invalid_argument("Invalid HTTP status code");
+	}
+}
+
+// TODO this logic works but i rather check with fsm and regex
+// check copilot and chatgpt and notes on suggested help 
+void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
+	Location newLocation;
+	std::vector<Method> methods;
+
+	std::regex rootRegex(R"(root\s(.+);)");
+	std::regex methodRegex(R"(allow_methods\s+((GET|POST|DELETE|PUT|HEAD)\s*)+;)");
+	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
+	std::regex indexRegex(R"(index\s+(.+);)");
+	std::regex cgiPassRegex(R"(cgi_pass\s+(.+);)");
+
+	for (const auto &line : parsedLocation) {
+		std::smatch match;
+		if (std::regex_search(line, match, rootRegex)) {
+			newLocation.setRoot(match[1]);
+		} else if (std::regex_search(line, match, methodRegex)) {
+			std::string methodsString = match[1];
+			std::istringstream iss(methodsString);
+			std::string method;
+			while (iss >> method) {
+				methods.push_back(stringToMethod(method));
+			}
+			newLocation.setMethods(methods);
+		} else if (std::regex_search(line, match, autoindexRegex)) {
+			newLocation.setAutoindex(match[1]);
+		} else if (std::regex_search(line, match, indexRegex)) {
+			newLocation.setIndex(match[1]);
+		} else if (std::regex_search(line, match, cgiPassRegex)) { // possibly add check for * path[0]
+			newLocation.setCgiPass(match[1]);
+		} // else {
+			// throw std::runtime_error("Invalid config line: " + line);
+		//}
+	}
+	_locations.emplace(path, std::move(newLocation));
+}
 
 ///
 ///
@@ -142,14 +186,9 @@ void Server::setLocation(const std::string &locationName, const std::vector<std:
 
 
 
-//private funcs
-void Server::initErrorPages(void) {
-	const std::vector<short> error_codes = {301, 302, 400, 401, 402, 403, 404, 405, 406, 500, 501, 502, 503, 505};
-	for (auto code : error_codes) {
-		_errorPages[code] = "";
-	}
-}
 
+
+// cheks input and strips ;
 void Server::checkInput(std::string &input_check) {
 	if (input_check.back() != ';' || input_check.empty())
 		throw Error("Token is invalid");
@@ -159,10 +198,11 @@ void Server::checkInput(std::string &input_check) {
 
 
 
-
-
-
-
+/* 
+** -----------------------------------------------
+** -			Server Logic Functions			 -
+** -----------------------------------------------
+*/
 
 void Server::setupServer() {
 	try {

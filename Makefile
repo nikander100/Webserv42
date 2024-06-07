@@ -14,6 +14,7 @@ SRCS := Socket/Socket.cpp \
 		HttpRequest.cpp \
 		main.cpp \
 		utils.cpp \
+		Location/Location.cpp \
 
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 

@@ -1,9 +1,12 @@
 #pragma once
 #include "Webserv.hpp"
+
 #include "HttpResponse.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
 #include "Client.hpp"
+#include "Location.hpp"
+#include "Method.hpp"
 
 class Location;
 
@@ -60,14 +63,15 @@ public:
 	int getListenFd(void) const;
 
 	// Accessors for the 'errorPages' member variable.
-	// const std::map<short, std::string> &getErrorPages(void) const;
-	// const std::string &getErrorPagePath(short key);
-	// void setErrorPages(const std::map<short, std::string>& errorpages);
+	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
+	const std::string &getErrorPagePath(short key);
+	void setErrorPages(const std::unordered_map<HttpStatusCodes, std::string> &errorpage);
+	void setErrorPage(HttpStatusCodes key, std::string path);
 
 	// Accessors for the 'locations' member variable.
 	// const std::vector<Location> &getLocations(void);
 	// const std::vector<Location>::iterator getlocationByKey(std::string key);
-	// void setLocation(const std::string& locationName, const std::vector<std::string>& location);
+	void setLocation(const std::string &path, std::vector<std::string> &location);
 
 	// Accessors for the 'serverAddress' member variable.
 	const sockaddr_in getServerAddress() const;
@@ -108,8 +112,8 @@ private:
 	unsigned long _clientMaxBodySize;
 	std::string _index;
 	bool _autoindex;
-	std::map<short, std::string> _errorPages;
-	// std::vector<Location> _locations;
+	std::unordered_map<HttpStatusCodes, std::string> _errorPages;
+	std::unordered_map<std::string, Location> _locations;
 	
 	ServerSocket _socket;
 
