@@ -36,8 +36,13 @@
 
 
 // Custom Defines
+
+constexpr size_t CONNECTION_TIMEOUT = 60; // 1 minute.
+
 // constexpr size_t MAX_CONTENT_SIZE = 33554432; // 32MB
 constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
+
+constexpr size_t MAX_URI_LENGTH = 4096;
 
 constexpr uint16_t TEST_PORT = 8081;
 

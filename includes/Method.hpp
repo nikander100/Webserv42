@@ -3,7 +3,7 @@
 #include <unordered_map>
 
 enum class Method {
-	GET, POST, DELETE, UNKNOWN
+	GET, POST, DELETE, PUT, HEAD, UNKNOWN
 };
 
 inline std::string methodToString(Method method) {
@@ -11,6 +11,8 @@ inline std::string methodToString(Method method) {
 		{Method::GET, "GET"},
 		{Method::POST, "POST"},
 		{Method::DELETE, "DELETE"},
+		{Method::PUT, "PUT"},
+		{Method::HEAD, "HEAD"},
 		{Method::UNKNOWN, "UNKNOWN"}
 	};
 
@@ -23,6 +25,8 @@ inline Method stringToMethod(const std::string &method) {
 		{"GET", Method::GET},
 		{"POST", Method::POST},
 		{"DELETE", Method::DELETE},
+		{"PUT", Method::PUT},
+		{"HEAD", Method::HEAD},
 		{"UNKNOWN", Method::UNKNOWN}
 	};
 
