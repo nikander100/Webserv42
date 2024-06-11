@@ -61,8 +61,13 @@ void Location::setAlias(std::string alias){
 	_alias = alias;
 }
 
-void Location::setCgiPath(std::vector<std::string> cgiPath){
-	_cgiPath = cgiPath;
+// void Location::setCgiPath(std::vector<std::string> cgiPath){
+// 	_cgiPath = cgiPath;
+// }
+
+//temp
+void Location::setCgiPath(std::string cgiPath){
+	_cgiPath.push_back(cgiPath);
 }
 
 void Location::setCgiExtension(std::vector<std::string> cgiextension){
@@ -113,8 +118,13 @@ const std::string &Location::getAlias() const {
 	return _alias;
 }
 
-const std::vector<std::string> &Location::getCgiPath() const {
-	return _cgiPath;
+// const std::vector<std::string> &Location::getCgiPath() const {
+// 	return _cgiPath;
+// }
+
+//temp
+const std::string &Location::getCgiPath() const {
+	return _cgiPath[0];
 }
 
 const std::vector<std::string> &Location::getCgiExtension() const {

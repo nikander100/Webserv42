@@ -175,7 +175,7 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 		} else if (std::regex_search(line, match, indexRegex)) {
 			newLocation.setIndex(match[1]);
 		} else if (std::regex_search(line, match, cgiPassRegex)) { // possibly add check for * path[0]
-			newLocation.setCgiPass(match[1]);
+			newLocation.setCgiPath(match[1]);
 		} // else {
 			// throw std::runtime_error("Invalid config line: " + line);
 		//}
@@ -198,7 +198,7 @@ const std::unordered_map<std::string, Location> &Server::getLocations() {
 bool Server::isValidLocations() const{
 	for (const auto &location : _locations) {
 		if (location.first.front() == '*') {
-			std::string path = location.second.getCgiPass();
+			std::string path = location.second.getCgiPath();
 			if (path.empty()) { //|| check if file exists using checkfilefunciton.
 				return false;
 			}

@@ -49,6 +49,7 @@ constexpr uint16_t TEST_PORT = 8081;
 #include "AnsiCodes.hpp"
 #include "Debug.hpp"
 #include "HttpStatusCodes.hpp"
+#include "FileUtils.hpp"
 
 //part of reading config file
 std::vector<std::string>	readfile(char **argv); //TODO needs own class

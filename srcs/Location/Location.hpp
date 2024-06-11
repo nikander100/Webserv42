@@ -2,7 +2,6 @@
 
 #include "Webserv.hpp"
 #include "Method.hpp"
-#include "FileUtils.hpp"
 
 class Location {
 	public:
@@ -21,7 +20,8 @@ class Location {
 		// void setCgiPass(std::string cgiPass);
 		void setReturn(std::string param);
 		void setAlias(std::string alias);
-		void setCgiPath(std::vector<std::string> cgiPath);
+		void setCgiPath(std::string cgiPath); // temp
+		// void setCgiPath(std::vector<std::string> cgiPath);
 		void setCgiExtension(std::vector<std::string> cgiextension);
 		void setMaxBodySize(std::string maxmodysize);
 		void setMaxBodySize(unsigned long maxbodysize);
@@ -34,7 +34,8 @@ class Location {
 		// const std::string &getCgiPass() const;
 		const std::string &getReturn() const;
 		const std::string &getAlias() const;
-		const std::vector<std::string> &getCgiPath() const;
+		// const std::vector<std::string> &getCgiPath() const;
+		const std::string &getCgiPath() const; // temp
 		const std::vector<std::string> &getCgiExtension() const;
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
