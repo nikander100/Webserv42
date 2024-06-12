@@ -6,7 +6,10 @@
 #include "ServerSocket.hpp"
 #include "Client.hpp"
 #include "Location.hpp"
+
 #include "Method.hpp"
+#include "HttpStatusCodes.hpp"
+#include "BuiltinErrorPages.hpp"
 
 class Location;
 
@@ -86,9 +89,6 @@ public:
 	bool handlesClient(const int &clientFd);
 	void acceptNewConnection();
 	void handleRequest(const int& clientFd);
-	//canbeprivate?
-	// void sendResponse()
-
 
 
 	class Error : public std::exception {
@@ -118,7 +118,6 @@ private:
 	ServerSocket _socket;
 
 	static void checkInput(std::string &inputcheck);
-	void initErrorPages(void);
 
 	//newcodesplitsbs
 	std::vector<std::unique_ptr<Client>> _clients;

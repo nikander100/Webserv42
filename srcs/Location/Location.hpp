@@ -5,7 +5,6 @@
 
 class Location {
 	public:
-		// std::map<std::string, std::string> extensionPath;
 
 		Location();
 		// Location(const Location &copy);
@@ -17,11 +16,8 @@ class Location {
 		void setRoot(std::string rootLocation);
 		void setPath(std::string path);
 		void setIndex(std::string index);
-		// void setCgiPass(std::string cgiPass);
 		void setReturn(std::string param);
 		void setAlias(std::string alias);
-		// void setCgiPath(std::vector<std::string> cgiPath);
-		// void setCgiExtension(std::vector<std::string> cgiextension);
 		void setCgiPathExtension(const std::vector<std::pair<std::string, std::string>> cgiPathExtension);
 		void setMaxBodySize(std::string maxmodysize);
 		void setMaxBodySize(unsigned long maxbodysize);
@@ -31,11 +27,8 @@ class Location {
 		const std::unordered_map<Method, bool> &getAllowedMethods() const;
 		const bool &getAutoindex() const;
 		const std::string &getIndex() const;
-		// const std::string &getCgiPass() const;
 		const std::string &getReturn() const;
 		const std::string &getAlias() const;
-		// const std::vector<std::string> &getCgiPath() const;
-		// const std::vector<std::string> &getCgiExtension() const;
 		const std::vector<std::pair<std::string, std::string>> &getCgiPathExtension() const;
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
@@ -52,8 +45,6 @@ class Location {
 		std::string _return;
 		std::string _alias;
 		std::vector<std::pair<std::string, std::string>> _cgiPathExtension;
-		// std::vector<std::string> _cgiPath;
-		// std::vector<std::string> _cgiExtension;
 		unsigned long _clientMaxBodySize;
 
 };

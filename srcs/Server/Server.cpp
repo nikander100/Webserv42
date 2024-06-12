@@ -3,7 +3,6 @@
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
 	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoindex(false) {
-	// initErrorPages();
 }
 
 Server::~Server() {
@@ -332,7 +331,8 @@ void Server::checkInput(std::string &input_check) {
 
 /* 
 ** -----------------------------------------------
-** -			Server Logic Functions			 -
+** =					START OF				 =
+** =			Server Logic Functions			 =
 ** -----------------------------------------------
 */
 
@@ -445,6 +445,12 @@ void Server::handleRequest(const int &client_fd) {
 		// Clear the request object for the next request
 		client.clearRequest();
 	}
+	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.
 
+/*
+** -----------------------------------------------
+** =					END OF					 =
+** =			Server Logic Functions			 =
+** -----------------------------------------------
+*/
 }
-// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.
