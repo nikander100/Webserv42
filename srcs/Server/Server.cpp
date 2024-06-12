@@ -280,9 +280,9 @@ int Server::isValidLocation(Location &location) const {
 				return FAILED_CGI_VALIDATION;
 			}
 		}
-		if (cgiPathExtension.size() != location.getExtensionPath().size()) {
-			return FAILED_CGI_VALIDATION;
-		}
+		// if (cgiPathExtension.size() != location.getExtensionPath().size()) {
+		// 	return FAILED_CGI_VALIDATION;
+		// }
 	} else {
 		if (path.front() != '/') {
 			return FAILED_ROOT_VALIDATION;

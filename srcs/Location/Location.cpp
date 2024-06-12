@@ -113,10 +113,6 @@ const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExte
 	return _cgiPathExtension;
 }
 
-const std::map<std::string, std::string> &Location::getExtensionPath() const {
-	return extensionPath;
-}
-
 const unsigned long &Location::getMaxBodySize() const {
 	return _clientMaxBodySize;
 }

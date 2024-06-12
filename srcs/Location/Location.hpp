@@ -36,13 +36,13 @@ class Location {
 		const std::string &getAlias() const;
 		// const std::vector<std::string> &getCgiPath() const;
 		// const std::vector<std::string> &getCgiExtension() const;
-		const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtension() const;
+		const std::vector<std::pair<std::string, std::string>> &getCgiPathExtension() const;
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
 
 
 
-		std::map<std::string, std::string> extensionPath;
+
 	private:
 		std::string _path;
 		std::string	 _root;
