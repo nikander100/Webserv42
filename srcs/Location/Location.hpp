@@ -20,9 +20,9 @@ class Location {
 		// void setCgiPass(std::string cgiPass);
 		void setReturn(std::string param);
 		void setAlias(std::string alias);
-		void setCgiPath(std::string cgiPath); // temp
 		// void setCgiPath(std::vector<std::string> cgiPath);
-		void setCgiExtension(std::vector<std::string> cgiextension);
+		// void setCgiExtension(std::vector<std::string> cgiextension);
+		void setCgiPathExtension(const std::vector<std::pair<std::string, std::string>> cgiPathExtension);
 		void setMaxBodySize(std::string maxmodysize);
 		void setMaxBodySize(unsigned long maxbodysize);
 
@@ -35,8 +35,8 @@ class Location {
 		const std::string &getReturn() const;
 		const std::string &getAlias() const;
 		// const std::vector<std::string> &getCgiPath() const;
-		const std::string &getCgiPath() const; // temp
-		const std::vector<std::string> &getCgiExtension() const;
+		// const std::vector<std::string> &getCgiExtension() const;
+		const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtension() const;
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
 
@@ -51,8 +51,9 @@ class Location {
 		std::unordered_map<Method, bool> _allowedMethods; // GET+ POST- DELETE- (PUT- HEAD-)
 		std::string _return;
 		std::string _alias;
-		std::vector<std::string> _cgiPath;
-		std::vector<std::string> _cgiExtension;
+		std::vector<std::pair<std::string, std::string>> _cgiPathExtension;
+		// std::vector<std::string> _cgiPath;
+		// std::vector<std::string> _cgiExtension;
 		unsigned long _clientMaxBodySize;
 
 };

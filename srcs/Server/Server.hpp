@@ -126,7 +126,9 @@ private:
 	void _removeClient(int clientFd);
 
 	//newcodelocation&errorpages
-	bool isValidLocations(void) const;
+	int isValidLocation(Location &location) const;
+	bool isValidCgiExtension(const std::string& ext, const std::string& path) const;
+
 	
 
 

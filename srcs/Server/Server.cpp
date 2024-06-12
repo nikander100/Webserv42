@@ -145,41 +145,105 @@ const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() 
 	return _errorPages;
 }
 
-
-// TODO this logic works but i rather check with fsm and regex
-// check copilot and chatgpt and notes on suggested help 
 void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
 	Location newLocation;
 	std::vector<Method> methods;
+	std::vector<std::pair<std::string, std::string>> cgiPathExtension;
 
 	std::regex rootRegex(R"(root\s(.+);)");
-	std::regex methodRegex(R"(allow_methods\s+((GET|POST|DELETE|PUT|HEAD)\s*)+;)");
+	std::regex methodRegex(R"(allow_methods\s+((GET|POST|PUT|HEAD|DELETE)\s*)+;)");
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
-	std::regex cgiPassRegex(R"(cgi_pass\s+(.+);)");
+	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
+	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
+	std::regex returnRegex(R"(return\s+(.+);)");
+	std::regex aliasRegex(R"(alias\s+(.+);)");
+	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
 
+	newLocation.setPath(path);
+	
 	for (const auto &line : parsedLocation) {
 		std::smatch match;
 		if (std::regex_search(line, match, rootRegex)) {
+			if (!newLocation.getRoot().empty())
+				throw std::runtime_error("Root of location is duplicated");
 			newLocation.setRoot(match[1]);
 		} else if (std::regex_search(line, match, methodRegex)) {
-			std::string methodsString = match[1];
-			std::istringstream iss(methodsString);
+			std::string methodsStr = match[1];
+			std::istringstream iss(methodsStr);
 			std::string method;
 			while (iss >> method) {
 				methods.push_back(stringToMethod(method));
 			}
 			newLocation.setMethods(methods);
 		} else if (std::regex_search(line, match, autoindexRegex)) {
+			if (path == "/cgi-bin") {
+				throw std::runtime_error("Autoindex is not allowed for /cgi-bin");
+			}
 			newLocation.setAutoindex(match[1]);
 		} else if (std::regex_search(line, match, indexRegex)) {
+			if (!newLocation.getIndex().empty())
+				throw std::runtime_error("Index of location is duplicated");
 			newLocation.setIndex(match[1]);
-		} else if (std::regex_search(line, match, cgiPassRegex)) { // possibly add check for * path[0]
-			newLocation.setCgiPath(match[1]);
-		} // else {
-			// throw std::runtime_error("Invalid config line: " + line);
-		//}
+		} else if (std::regex_search(line, match, returnRegex)) {
+			if (path == "/cgi-bin") {
+				throw std::runtime_error("Return is not allowed for /cgi-bin");
+			}
+			if (!newLocation.getReturn().empty())
+				throw std::runtime_error("Return of location is duplicated");
+			newLocation.setReturn(match[1]);
+		} else if (std::regex_search(line, match, aliasRegex)) {
+			if (path == "/cgi-bin") {
+				throw std::runtime_error("Alias is not allowed for /cgi-bin");
+			}
+			if (!newLocation.getAlias().empty())
+				throw std::runtime_error("Alias of location is duplicated");
+			newLocation.setAlias(match[1]);
+		} else if (std::regex_search(line, match, clientMaxBodySizeRegex)) {
+			newLocation.setMaxBodySize(match[1]);
+		} else if (std::regex_search(line, match, cgiExtRegex)) {
+			std::istringstream iss(match[1]);
+			std::string cgiExt;
+			while (iss >> cgiExt) {
+				cgiPathExtension.emplace_back(cgiExt, "");
+			}
+		} else if (std::regex_search(line, match, cgiPathRegex)) {
+			std::istringstream iss(match[1]);
+			std::string cgiPath;
+			for (auto &cgiExt : cgiPathExtension) {
+				if (iss >> cgiPath) {
+					cgiExt.second = cgiPath;
+				} else {
+					break ;
+				}
+			}
+		} else {
+			throw std::runtime_error("Parametr in a location is invalid");
+		}
 	}
+
+	for (const auto &cgiExt : cgiPathExtension) {
+		if (cgiExt.second.empty()) {
+			throw std::runtime_error("Invalid CGI path/extension | cgi_ext and cgi_path configuration mismatch");
+		}
+	}
+	newLocation.setCgiPathExtension(cgiPathExtension);
+
+	if (newLocation.getPath() != "/cgi-bin" && newLocation.getIndex().empty())
+		newLocation.setIndex(_index);
+	if (newLocation.getMaxBodySize() == 0)
+		newLocation.setMaxBodySize(_clientMaxBodySize);
+	int valid = isValidLocation(newLocation);
+	if (valid == 1)
+		throw std::runtime_error("Failed CGI validation");
+	else if (valid == 2)
+		throw std::runtime_error("Failed path in location validation");
+	else if (valid == 3)
+		throw std::runtime_error("Failed redirection file in location validation");
+	else if (valid == 4)
+		throw std::runtime_error("Failed alias file in location validation");
+	
+
 	_locations.emplace(path, std::move(newLocation));
 }
 
@@ -194,21 +258,64 @@ const std::unordered_map<std::string, Location> &Server::getLocations() {
 ///
 
 
-//posibly temp -- can possibly be moved into the setlocation function unsure though
-bool Server::isValidLocations() const{
-	for (const auto &location : _locations) {
-		if (location.first.front() == '*') {
-			std::string path = location.second.getCgiPath();
-			if (path.empty()) { //|| check if file exists using checkfilefunciton.
-				return false;
-			}
-			continue;
+// checks if the location is valid
+int Server::isValidLocation(Location &location) const {
+	const int FAILED_CGI_VALIDATION = 1;
+	const int FAILED_ROOT_VALIDATION = 2;
+	const int FAILED_RETURN_VALIDATION = 3;
+	const int FAILED_ALIAS_VALIDATION = 4;
+	const int FAILED_INDEX_VALIDATION = 5;
+	const int ALL_CHECKS_PASSED = 0;
+	const std::string path = location.getPath();
+	
+	if (path == "/cgi-bin") {
+		const auto &cgiPathExtension = location.getCgiPathExtension();
+		if (cgiPathExtension.empty() || location.getIndex().empty()) {
+			return FAILED_CGI_VALIDATION;
 		}
-		if (location.first.front() != '/') {
-			return false;// check root locations
+		for (const auto &pair : cgiPathExtension) {
+			const std::string &path = pair.first;
+			const std::string &ext = pair.second;
+			if (path.empty() || FileUtils::getTypePath(path) < 0 || !isValidCgiExtension(ext, path)) {
+				return FAILED_CGI_VALIDATION;
+			}
+		}
+		if (cgiPathExtension.size() != location.getExtensionPath().size()) {
+			return FAILED_CGI_VALIDATION;
+		}
+	} else {
+		if (path.front() != '/') {
+			return FAILED_ROOT_VALIDATION;
+		}
+		if (location.getRoot().empty()) {
+			location.setRoot(_root);
+		}
+		if (FileUtils::isFileExistAndReadable(location.getRoot() + location.getPath() + "/", location.getIndex())) {
+			return FAILED_INDEX_VALIDATION;
+		}
+		if (!location.getReturn().empty()) {
+			if (FileUtils::isFileExistAndReadable(location.getRoot(), location.getReturn())) {
+				return FAILED_RETURN_VALIDATION;
+			}
+		}
+		if (!location.getAlias().empty()) {
+			if (FileUtils::isFileExistAndReadable(location.getRoot(), location.getAlias())) {
+				return FAILED_ALIAS_VALIDATION;
+			}
 		}
 	}
-	return true;
+	return ALL_CHECKS_PASSED;
+}
+
+// checks if the extension is valid for the given path, is used in isValidLocation
+bool Server::isValidCgiExtension(const std::string& ext, const std::string& path) const {
+	if (ext == ".py" || ext == "*.py") {
+		return path.find("python") != std::string::npos;
+	}
+	if (ext == ".sh" || ext == "*.sh") {
+		return path.find("bash") != std::string::npos;
+	}
+	return false;
 }
 
 

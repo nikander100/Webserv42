@@ -61,22 +61,13 @@ void Location::setAlias(std::string alias){
 	_alias = alias;
 }
 
-// void Location::setCgiPath(std::vector<std::string> cgiPath){
-// 	_cgiPath = cgiPath;
-// }
-
-//temp
-void Location::setCgiPath(std::string cgiPath){
-	_cgiPath.push_back(cgiPath);
+void Location::setCgiPathExtension(const std::vector<std::pair<std::string, std::string>> cgiPathExtension) {
+	_cgiPathExtension = cgiPathExtension;
 }
 
-void Location::setCgiExtension(std::vector<std::string> cgiextension){
-	_cgiExtension = cgiextension;
-}
-
-void Location::setMaxBodySize(std::string maxmodysize){
+void Location::setMaxBodySize(std::string maxbodysize){
 	try {
-		_clientMaxBodySize = std::stoul(maxmodysize);
+		_clientMaxBodySize = std::stoul(maxbodysize);
 	} catch (const std::invalid_argument& e) {
 		throw std::runtime_error("Invalid max body size value");
 	} catch (const std::out_of_range& e) {
@@ -118,17 +109,8 @@ const std::string &Location::getAlias() const {
 	return _alias;
 }
 
-// const std::vector<std::string> &Location::getCgiPath() const {
-// 	return _cgiPath;
-// }
-
-//temp
-const std::string &Location::getCgiPath() const {
-	return _cgiPath[0];
-}
-
-const std::vector<std::string> &Location::getCgiExtension() const {
-	return _cgiExtension;
+const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtension() const {
+	return _cgiPathExtension;
 }
 
 const std::map<std::string, std::string> &Location::getExtensionPath() const {

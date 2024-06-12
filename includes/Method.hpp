@@ -10,9 +10,9 @@ inline std::string methodToString(Method method) {
 	static const std::unordered_map<Method, std::string> methodMap = {
 		{Method::GET, "GET"},
 		{Method::POST, "POST"},
-		{Method::DELETE, "DELETE"},
 		{Method::PUT, "PUT"},
 		{Method::HEAD, "HEAD"},
+		{Method::DELETE, "DELETE"},
 		{Method::UNKNOWN, "UNKNOWN"}
 	};
 
