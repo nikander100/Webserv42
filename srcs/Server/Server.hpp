@@ -8,10 +8,6 @@
 #include "Location.hpp"
 
 #include "Method.hpp"
-#include "HttpStatusCodes.hpp"
-#include "BuiltinErrorPages.hpp"
-
-class Location;
 
 class Server {
 public:
@@ -19,12 +15,6 @@ public:
 	Server(const Server &copy) = delete;
 	Server &operator = (const Server &rhs) = delete;
 	virtual ~Server(void);
-
-
-	// Accessors for the 'id' member variable.
-
-	int getId(void) const;
-	void setId(int id);
 
 	// Accessors for the 'servername' member variable.
 
@@ -67,20 +57,18 @@ public:
 
 	// Accessors for the 'errorPages' member variable.
 	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
-	const std::string &getErrorPagePath(short key);
-	void setErrorPages(const std::unordered_map<HttpStatusCodes, std::string> &errorpage);
+	std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key);
+	void setErrorPages(const std::vector<std::string> &error_pages);
 	void setErrorPage(HttpStatusCodes key, std::string path);
 
 	// Accessors for the 'locations' member variable.
 	const std::unordered_map<std::string, Location> &getLocations(void);
-	// const std::vector<Location>::iterator getlocationByKey(std::string key);
+	const Location &getLocation(const std::string &path);
 	void setLocation(const std::string &path, std::vector<std::string> &location);
 
 	// Accessors for the 'serverAddress' member variable.
 	const sockaddr_in getServerAddress() const;
 	// void setServerAddress(struct sockaddr_in serveraddress); possibly not needed.
-
-	bool validErrorPages(void);
 
 
 	void run();
@@ -104,7 +92,6 @@ public:
 	};
 
 private:
-	int _id;
 	std::string _serverName;
 	uint16_t _port; //dont use internally, use the _socket.getFd() instead.
 	in_addr_t _host; // dont use internally, use the _socket.getaddress() instead.
@@ -115,7 +102,7 @@ private:
 	std::unordered_map<HttpStatusCodes, std::string> _errorPages;
 	std::unordered_map<std::string, Location> _locations;
 	
-	ServerSocket _socket;
+	ServerSocket _socket; // TODO make this a unique_ptr
 
 	static void checkInput(std::string &inputcheck);
 
@@ -125,7 +112,16 @@ private:
 	void _removeClient(int clientFd);
 
 	//newcodelocation&errorpages
-	int isValidLocation(Location &location) const;
+	enum class CgiValidation {
+		VALID = 0,
+		FAILED_CGI_VALIDATION,
+		FAILED_ROOT_VALIDATION,
+		FAILED_RETURN_VALIDATION,
+		FAILED_ALIAS_VALIDATION,
+		FAILED_INDEX_VALIDATION
+	};
+	bool validLocations(void);
+	CgiValidation isValidLocation(Location &location) const;
 	bool isValidCgiExtension(const std::string& ext, const std::string& path) const;
 
 	

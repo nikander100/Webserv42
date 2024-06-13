@@ -64,3 +64,49 @@ enum class HttpStatusCodes {
 	NOT_EXTENDED = 510,
 	NETWORK_AUTHENTICATION_REQUIRED = 511
 };
+
+// TODO IMPLEMENT NAMESPACE
+// #pragma once
+// #include <string>
+// #include <unordered_map>
+
+// namespace HttpStatus {
+
+// 	enum class Code {
+// 		CONTINUE = 100,
+// 		SWITCHING_PROTOCOLS = 101,
+// 		// ... rest of the codes ...
+// 		NETWORK_AUTHENTICATION_REQUIRED = 511
+// 	};
+
+// 	const std::unordered_map<int, std::string> codeToString = {
+// 		{100, "CONTINUE"},
+// 		{101, "SWITCHING_PROTOCOLS"},
+// 		// ... rest of the codes ...
+// 		{511, "NETWORK_AUTHENTICATION_REQUIRED"}
+// 	};
+
+// 	const std::unordered_map<std::string, Code> stringToCode = {
+// 		{"CONTINUE", Code::CONTINUE},
+// 		{"SWITCHING_PROTOCOLS", Code::SWITCHING_PROTOCOLS},
+// 		// ... rest of the codes ...
+// 		{"NETWORK_AUTHENTICATION_REQUIRED", Code::NETWORK_AUTHENTICATION_REQUIRED}
+// 	};
+
+// 	std::string toString(Code code) {
+// 		int codeAsInt = static_cast<int>(code);
+// 		if (codeToString.count(codeAsInt) > 0) {
+// 			return codeToString.at(codeAsInt);
+// 		} else {
+// 			throw std::runtime_error("Invalid status code");
+// 		}
+// 	}
+
+// 	Code fromString(const std::string& str) {
+// 		if (stringToCode.count(str) > 0) {
+// 			return stringToCode.at(str);
+// 		} else {
+// 			throw std::runtime_error("Invalid status code string");
+// 		}
+// 	}
+// }

@@ -9,7 +9,7 @@
 #include <sstream>
 #include <fcntl.h>
 #include <fstream>
-
+#include <filesystem>
 
 
 /* STL Containers */
@@ -48,6 +48,9 @@ constexpr uint16_t TEST_PORT = 8081;
 
 #include "AnsiCodes.hpp"
 #include "Debug.hpp"
+
+// #include "Method.hpp"
+#include "BuiltinErrorPages.hpp"
 #include "HttpStatusCodes.hpp"
 #include "FileUtils.hpp"
 

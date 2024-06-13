@@ -1,10 +1,11 @@
 #pragma once
-#include <string>
+#include <unordered_map>
+#include "HttpStatusCodes.hpp"
 #define CRLF "\r\n"
 
 // TODO RETURN any of these internal error pages if user has not set a custom error page
 
-namespace Wbs42BuiltinErrorPages {
+namespace BuiltinErrorPages {
 	static const char wbs42_http_error_301_page[] =
 	"<html>" CRLF
 	"<head><title>301 Moved Permanently</title></head>" CRLF
@@ -151,30 +152,6 @@ namespace Wbs42BuiltinErrorPages {
 	"<center><h1>400 Bad Request</h1></center>" CRLF
 	"<center>Request Header Or Cookie Too Large</center>" CRLF;
 
-	static const char wbs42_http_error_495_page[] =
-	"<html>" CRLF
-	"<head><title>400 The SSL certificate error</title></head>"
-	CRLF
-	"<body>" CRLF
-	"<center><h1>400 Bad Request</h1></center>" CRLF
-	"<center>The SSL certificate error</center>" CRLF;
-
-	static const char wbs42_http_error_496_page[] =
-	"<html>" CRLF
-	"<head><title>400 No required SSL certificate was sent</title></head>"
-	CRLF
-	"<body>" CRLF
-	"<center><h1>400 Bad Request</h1></center>" CRLF
-	"<center>No required SSL certificate was sent</center>" CRLF;
-
-	static const char wbs42_http_error_497_page[] =
-	"<html>" CRLF
-	"<head><title>400 The plain HTTP request was sent to HTTPS port</title></head>"
-	CRLF
-	"<body>" CRLF
-	"<center><h1>400 Bad Request</h1></center>" CRLF
-	"<center>The plain HTTP request was sent to HTTPS port</center>" CRLF;
-
 	static const char wbs42_http_error_500_page[] =
 	"<html>" CRLF
 	"<head><title>500 Internal Server Error</title></head>" CRLF
@@ -217,4 +194,45 @@ namespace Wbs42BuiltinErrorPages {
 	"<body>" CRLF
 	"<center><h1>507 Insufficient Storage</h1></center>" CRLF;
 
+	const std::unordered_map<HttpStatusCodes, const char *> errorPages = {
+		{HttpStatusCodes::MOVED_PERMANENTLY, wbs42_http_error_301_page},
+		{HttpStatusCodes::FOUND, wbs42_http_error_302_page},
+		{HttpStatusCodes::SEE_OTHER, wbs42_http_error_303_page},
+		{HttpStatusCodes::TEMPORARY_REDIRECT, wbs42_http_error_307_page},
+		{HttpStatusCodes::PERMANENT_REDIRECT, wbs42_http_error_308_page},
+		{HttpStatusCodes::BAD_REQUEST, wbs42_http_error_400_page},
+		{HttpStatusCodes::UNAUTHORIZED, wbs42_http_error_401_page},
+		{HttpStatusCodes::PAYMENT_REQUIRED, wbs42_http_error_402_page},
+		{HttpStatusCodes::FORBIDDEN, wbs42_http_error_403_page},
+		{HttpStatusCodes::NOT_FOUND, wbs42_http_error_404_page},
+		{HttpStatusCodes::METHOD_NOT_ALLOWED, wbs42_http_error_405_page},
+		{HttpStatusCodes::NOT_ACCEPTABLE, wbs42_http_error_406_page},
+		{HttpStatusCodes::REQUEST_TIMEOUT, wbs42_http_error_408_page},
+		{HttpStatusCodes::CONFLICT, wbs42_http_error_409_page},
+		{HttpStatusCodes::GONE, wbs42_http_error_410_page},
+		{HttpStatusCodes::LENGTH_REQUIRED, wbs42_http_error_411_page},
+		{HttpStatusCodes::PRECONDITION_FAILED, wbs42_http_error_412_page},
+		{HttpStatusCodes::PAYLOAD_TOO_LARGE, wbs42_http_error_413_page},
+		{HttpStatusCodes::URI_TOO_LONG, wbs42_http_error_414_page},
+		{HttpStatusCodes::UNSUPPORTED_MEDIA_TYPE, wbs42_http_error_415_page},
+		{HttpStatusCodes::RANGE_NOT_SATISFIABLE, wbs42_http_error_416_page},
+		{HttpStatusCodes::MISDIRECTED_REQUEST, wbs42_http_error_421_page},
+		{HttpStatusCodes::TOO_MANY_REQUESTS, wbs42_http_error_429_page},
+		{HttpStatusCodes::REQUEST_HEADER_FIELDS_TOO_LARGE, wbs42_http_error_494_page},
+		{HttpStatusCodes::INTERNAL_SERVER_ERROR, wbs42_http_error_500_page},
+		{HttpStatusCodes::NOT_IMPLEMENTED, wbs42_http_error_501_page},
+		{HttpStatusCodes::BAD_GATEWAY, wbs42_http_error_502_page},
+		{HttpStatusCodes::SERVICE_UNAVAILABLE, wbs42_http_error_503_page},
+		{HttpStatusCodes::GATEWAY_TIMEOUT, wbs42_http_error_504_page},
+		{HttpStatusCodes::HTTP_VERSION_NOT_SUPPORTED, wbs42_http_error_505_page},
+		{HttpStatusCodes::INSUFFICIENT_STORAGE, wbs42_http_error_507_page}
+	};
+
+	inline bool isInternalPage(HttpStatusCodes code) {
+		return errorPages.count(code) > 0;
+	}
+
+	inline const char *getInternalPage(HttpStatusCodes code) {
+		return errorPages.at(code);
+	}
 }

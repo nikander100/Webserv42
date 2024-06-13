@@ -64,7 +64,7 @@ bool HttpResponse::buildBody() {
 	return true;
 }
 
-void HttpResponse::readFile() {
+void HttpResponse::readFile() { // TODO make dynamic
 	std::string file_path = _request.getPath().compare("/") == 0 ? "wwwroot/server_dir/home.html" : "wwwroot/server_dir" + _request.getPath();
 	DEBUG_PRINT(GREEN, file_path);
 	std::ifstream fin(file_path, std::ios::binary | std::ios::ate);

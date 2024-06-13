@@ -9,15 +9,6 @@ Server::~Server() {
 	_socket.close();
 }
 
-void Server::setId(int id) {
-	//id doesnt need validity check due to it being set directly by parser loop count.
-	_id = id;
-}
-
-int Server::getId() const {
-	return _id;
-}
-
 void Server::setServerName(std::string &server_name) {
 	checkInput(server_name);
 	_serverName = server_name;
@@ -69,15 +60,24 @@ std::string Server::getPort() const {
 	return std::to_string(_port);
 }
 
-void Server::setRoot(std::string &root) { //TODO finish function.
+void Server::setRoot(std::string &root) {
 	checkInput(root);
-	// check if path is file, folder or something else (this happens quite often probably also in responses/locatoins/parse, might be best to make an extra class with these functions like configUtils or have a class for config file that can check read/checkfiles/ifexistandreadable(perms)/gettype/ return the content of the file it has the path too. ) probably enum the types of files or use constexpr instead of define macro
-	//if folder set _root = root.
-	std::string dir = getcwd(NULL, 0);
-	// if dir.empty() throw exception failed get dir
-	std::string rootPathExpanded = dir + root;
-	// check if path is file, folder or something else, if not folder throw syntax error
-	_root = rootPathExpanded;
+	if (FileUtils::getTypePath(root) == FileType::DIRECTORY) {
+		_root = root;
+		return ;
+	}
+
+	std::string dir = std::filesystem::current_path();
+	if (dir.empty()) {
+		throw Error("Error getting current working directory");
+	}
+	
+	std::string fullPath = dir + root;
+	if (FileUtils::getTypePath(fullPath) != FileType::DIRECTORY) {
+		// If not a directory, throw an exception
+		throw std::runtime_error("Path is not a directory: " + fullPath);
+	}
+	_root = fullPath;
 }
 
 std::string Server::getRoot() const {
@@ -110,6 +110,11 @@ std::string Server::getIndex() const {
 
 void Server::setAutoIndex(std::string& autoindex) {
 	checkInput(autoindex);
+
+	if (autoindex != "on" && autoindex != "off") {
+		throw std::runtime_error("Wrong syntax: autoindex must be either 'on' or 'off'");
+	}
+
 	_autoindex = (autoindex == "on") ? true : false;
 }
 
@@ -125,23 +130,66 @@ const sockaddr_in Server::getServerAddress() const {
 	return _socket.getAddress();
 }
 
-// set all error pages in one go -- possibly redundant
-void Server::setErrorPages(const std::unordered_map<HttpStatusCodes, std::string> &errorpages) {
-	_errorPages = errorpages;
+// call this funciton from configparser to set all pages
+void Server::setErrorPages(const std::vector<std::string> &error_pages) {
+	for (const std::string &page : error_pages) {
+		std::istringstream iss(page);
+		std::string error_keyword, status_code, path;
+		if (!(iss >> error_keyword >> status_code >> path)) {
+			throw Error("Invalid error page format: " + page);
+		}
+		if (error_keyword != "error_page") {
+			throw Error("Invalid keyword in error page: " + page);
+		}
+		HttpStatusCodes code = static_cast<HttpStatusCodes>(std::stoi(status_code));
+		setErrorPage(code, path);
+	}
 }
 
 // set a specific error page
 void Server::setErrorPage(HttpStatusCodes key, std::string path) {
-	// TODO add check if file exists
-	if (key >= HttpStatusCodes::CONTINUE && key <= HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
-		_errorPages[key] = path;
-	} else {
+	if (key < HttpStatusCodes::CONTINUE || key > HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
+
+	//check if file exists
+	if (FileUtils::getTypePath(path) != FileType::DIRECTORY) {
+		if (FileUtils::getTypePath(_root + path) != FileType::FILE) {
+			throw std::invalid_argument("Incorrect path for error page file: " + _root + path);
+		}
+		if (FileUtils::checkFile(_root + path) == -1) {
+			throw std::invalid_argument("Error page file :" + _root + path + " is not accessible");
+		}
+	}
+
+	_errorPages[key] = path;
+
 }
 
 const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() const {
 	return _errorPages;
+}
+
+
+// auto [isInternal, page] = server.getErrorPage(statusCode);
+// if (isInternal) {
+//     // Handle internal page
+// } else {
+//     // Handle custom page
+// }
+// returns either the path to the custom error page or the default internal error page
+std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
+	// Check if a custom error page has been set for this status code
+	if (_errorPages.count(key) > 0) {
+		return {false, _errorPages.at(key)};
+	}
+
+	// If not, check if the status code has an internal page in BuiltinErrorPages.hpp
+	if (BuiltinErrorPages::isInternalPage(key)) {
+		return {true, BuiltinErrorPages::getInternalPage(key)};
+	}
+	
+	throw std::invalid_argument("Error page not found for status code: " + std::to_string(static_cast<int>(key)));
 }
 
 void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
@@ -232,16 +280,23 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 		newLocation.setIndex(_index);
 	if (newLocation.getMaxBodySize() == 0)
 		newLocation.setMaxBodySize(_clientMaxBodySize);
-	int valid = isValidLocation(newLocation);
-	if (valid == 1)
-		throw std::runtime_error("Failed CGI validation");
-	else if (valid == 2)
-		throw std::runtime_error("Failed path in location validation");
-	else if (valid == 3)
-		throw std::runtime_error("Failed redirection file in location validation");
-	else if (valid == 4)
-		throw std::runtime_error("Failed alias file in location validation");
-	
+
+	// Validate the location
+	switch (isValidLocation(newLocation)) {
+		case CgiValidation::FAILED_CGI_VALIDATION:
+			throw std::runtime_error("Failed CGI validation");
+		case CgiValidation::FAILED_ROOT_VALIDATION:
+			throw std::runtime_error("Failed path in location validation");
+		case CgiValidation::FAILED_RETURN_VALIDATION:
+			throw std::runtime_error("Failed redirection file in location validation");
+		case CgiValidation::FAILED_ALIAS_VALIDATION:
+			throw std::runtime_error("Failed alias file in location validation");
+		case CgiValidation::FAILED_INDEX_VALIDATION:
+			break;
+			// throw std::runtime_error("Failed index file in location validation");
+		case CgiValidation::VALID:
+			break; // No error, do nothing
+	}
 
 	_locations.emplace(path, std::move(newLocation));
 }
@@ -250,6 +305,14 @@ const std::unordered_map<std::string, Location> &Server::getLocations() {
 	return _locations;
 }
 
+const Location &Server::getLocation(const std::string &path) {
+	if (_locations.count(path) == 0) {
+		throw std::runtime_error("Location not found: " + path);
+	}
+	return _locations.at(path);
+}
+
+
 ///
 ///
 /// end of accessors
@@ -257,26 +320,35 @@ const std::unordered_map<std::string, Location> &Server::getLocations() {
 ///
 
 
-// checks if the location is valid
-int Server::isValidLocation(Location &location) const {
-	const int FAILED_CGI_VALIDATION = 1;
-	const int FAILED_ROOT_VALIDATION = 2;
-	const int FAILED_RETURN_VALIDATION = 3;
-	const int FAILED_ALIAS_VALIDATION = 4;
-	const int FAILED_INDEX_VALIDATION = 5;
-	const int ALL_CHECKS_PASSED = 0;
+//check if locations are valid, no duplicates etc. good to be used in config parser.
+bool Server::validLocations(void) {
+	std::vector<std::string> paths;
+	for (const auto &pair : _locations) {
+		if (pair.first.empty() || pair.first.front() != '/') {
+			throw std::invalid_argument("Invalid location path: " + pair.first);
+		}
+		if (std::find(paths.begin(), paths.end(), pair.first) != paths.end()) {
+			throw std::runtime_error("Duplicate location path: " + pair.first);
+		}
+		paths.push_back(pair.first);
+	}
+	return true;
+}
+
+// checks if the location is valid can be used outside but is internal mostly..
+Server::CgiValidation Server::isValidLocation(Location &location) const {
 	const std::string path = location.getPath();
 	
 	if (path == "/cgi-bin") {
 		const auto &cgiPathExtension = location.getCgiPathExtension();
 		if (cgiPathExtension.empty() || location.getIndex().empty()) {
-			return FAILED_CGI_VALIDATION;
+			return CgiValidation::FAILED_CGI_VALIDATION;
 		}
 		for (const auto &pair : cgiPathExtension) {
 			const std::string &path = pair.first;
 			const std::string &ext = pair.second;
-			if (path.empty() || FileUtils::getTypePath(path) < 0 || !isValidCgiExtension(ext, path)) {
-				return FAILED_CGI_VALIDATION;
+			if (path.empty() || FileUtils::getTypePath(path) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, path)) {
+				return CgiValidation::FAILED_CGI_VALIDATION;
 			}
 		}
 		// if (cgiPathExtension.size() != location.getExtensionPath().size()) {
@@ -284,26 +356,26 @@ int Server::isValidLocation(Location &location) const {
 		// }
 	} else {
 		if (path.front() != '/') {
-			return FAILED_ROOT_VALIDATION;
+			return CgiValidation::FAILED_ROOT_VALIDATION;
 		}
 		if (location.getRoot().empty()) {
 			location.setRoot(_root);
 		}
 		if (FileUtils::isFileExistAndReadable(location.getRoot() + location.getPath() + "/", location.getIndex())) {
-			return FAILED_INDEX_VALIDATION;
+			return CgiValidation::FAILED_INDEX_VALIDATION;
 		}
 		if (!location.getReturn().empty()) {
 			if (FileUtils::isFileExistAndReadable(location.getRoot(), location.getReturn())) {
-				return FAILED_RETURN_VALIDATION;
+				return CgiValidation::FAILED_RETURN_VALIDATION;
 			}
 		}
 		if (!location.getAlias().empty()) {
 			if (FileUtils::isFileExistAndReadable(location.getRoot(), location.getAlias())) {
-				return FAILED_ALIAS_VALIDATION;
+				return CgiValidation::FAILED_ALIAS_VALIDATION;
 			}
 		}
 	}
-	return ALL_CHECKS_PASSED;
+	return CgiValidation::VALID;
 }
 
 // checks if the extension is valid for the given path, is used in isValidLocation

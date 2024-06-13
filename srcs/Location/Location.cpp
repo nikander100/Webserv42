@@ -14,7 +14,7 @@ Location::Location()
 	  }),
 	  _return(""),
 	  _alias(""),
-	  _clientMaxBodySize(MAX_CONTENT_SIZE) { // 	this->_client_max_body_size = MAX_CONTENT_LENGTH;
+	  _clientMaxBodySize(MAX_CONTENT_SIZE) { // 	_clientMaxBodySize = MAX_CONTENT_SIZE;
 
 }
 
@@ -39,7 +39,7 @@ void Location::setAutoindex(std::string autoindex) {
 }
 
 void Location::setRoot(std::string root){
-	if (FileUtils::getTypePath(root) != 2) {
+	if (FileUtils::getTypePath(root) != FileType::DIRECTORY) {
 		throw std::runtime_error("Invalid root path | root of location.");
 	}
 	_root = root;
