@@ -9,6 +9,9 @@ Server::~Server() {
 	_socket.close();
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [server_name localhost;]
 void Server::setServerName(std::string &server_name) {
 	checkInput(server_name);
 	_serverName = server_name;
@@ -18,6 +21,9 @@ std::string Server::getServerName() const {
 	return _serverName;
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [host 127.0.0.1;]
 void Server::setHost(std::string &host) {
 	checkInput(host);
 	if (host == "localhost") {
@@ -38,6 +44,9 @@ std::string Server::getHost() const {
 	return inet_ntoa(ip_addr);
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [listen 8002;]
 void Server::setPort(std::string &port_string) {
 	checkInput(port_string);
 
@@ -60,6 +69,9 @@ std::string Server::getPort() const {
 	return std::to_string(_port);
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [root docs/fusion_web/;]
 void Server::setRoot(std::string &root) {
 	checkInput(root);
 	if (FileUtils::getTypePath(root) == FileType::DIRECTORY) {
@@ -84,6 +96,9 @@ std::string Server::getRoot() const {
 	return _root;
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [client_max_body_size 3000000;]
 void Server::setClientMaxBodySize(std::string &client_max_body_size) {
 	checkInput(client_max_body_size);
 	try {
@@ -99,6 +114,9 @@ std::string Server::getClientMaxBodySize() const {
 	return std::to_string(_clientMaxBodySize);
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [index index.html;]
 void Server::setIndex(std::string &index) {
 	checkInput(index);
 	_index = index;
@@ -108,6 +126,9 @@ std::string Server::getIndex() const {
 	return _index;
 }
 
+// Server Block: server { ... }
+// Takes a std::string from the parser should be:
+// [autoindex on;]
 void Server::setAutoIndex(std::string& autoindex) {
 	checkInput(autoindex);
 
@@ -129,8 +150,13 @@ int Server::getListenFd() const {
 const sockaddr_in Server::getServerAddress() const {
 	return _socket.getAddress();
 }
-
-// call this funciton from configparser to set all pages
+// NOTE:: errorpage is not part of location
+// Server Block: server { ... }
+// Takes a Vector of strings std::vector<std::string> from the parser should be:
+// std::vector<std::string> {
+// [error_page 404 error_pages/404.html;]
+// [error_page 406 error_pages/406.html;]
+// }
 void Server::setErrorPages(const std::vector<std::string> &error_pages) {
 	for (const std::string &page : error_pages) {
 		std::istringstream iss(page);
@@ -192,6 +218,32 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 	throw std::invalid_argument("Error page not found for status code: " + std::to_string(static_cast<int>(key)));
 }
 
+
+// location /subfolder {
+//        root ./;
+//        allow_methods GET POST DELETE;
+//	  autoindex off;
+//        index time.py;
+//        cgi_path /usr/bin/python3 /bin/bash;
+//        cgi_ext .py .sh;
+//        return abc/index1.html;
+//        alias google.com/;
+//        client_max_body_size 1024;
+//    }
+
+// Location Block: location { ... }
+// Takes a std::String and Vector of strings std::vector<std::string> from the parser should be:
+// std:string path[/subfolder] std::vector<std::string> {
+// [root ./;]
+// [allow_methods GET POST DELETE;]
+// [autoindex off;]
+// [index time.py;]
+// [cgi_path /usr/bin/python3 /bin/bash;]
+// [cgi_ext .py .sh;]
+// [return abc/index1.html;]
+// [alias google.com/;]
+// [client_max_body_size 1024;]
+// }
 void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
 	Location newLocation;
 	std::vector<Method> methods;
