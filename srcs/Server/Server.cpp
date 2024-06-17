@@ -353,10 +353,12 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 	_locations.emplace(path, std::move(newLocation));
 }
 
+// returns the locations map.
 const std::unordered_map<std::string, Location> &Server::getLocations() {
 	return _locations;
 }
 
+// returns a reference to the location object with the given path.
 const Location &Server::getLocation(const std::string &path) {
 	if (_locations.count(path) == 0) {
 		throw std::runtime_error("Location not found: " + path);

@@ -57,7 +57,7 @@ public:
 
 	// Accessors for the 'errorPages' member variable.
 	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
-	std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key);
+	std::pair<bool, std::string> getErrorPage(HttpStatusCodes key);
 	void setErrorPages(const std::vector<std::string> &error_pages);
 	void setErrorPage(HttpStatusCodes key, std::string path);
 
