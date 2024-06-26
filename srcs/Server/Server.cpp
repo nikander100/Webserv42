@@ -1,5 +1,5 @@
 #include "Server.hpp"
-#include "RequestHandler.hpp"
+#include "HttpResponse.hpp"
 
 // use _host(inaddrloopback) to test on 127.0.0.1 and _host(inaddrany) to test on any ip.
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
@@ -230,6 +230,7 @@ void Server::_removeClient(int client_fd) {
 
 void Server::handleRequest(const int &client_fd) {
 	// Handle requests from clients
+	HttpResponse responseGenerator;
 	std::string responseContent;
 	Client& client = _getClient(client_fd);
 
@@ -237,35 +238,41 @@ void Server::handleRequest(const int &client_fd) {
 
 	try {
 		// Read data from client socket
-		std::string requestContent = client.recv();
-		if (requestContent.empty()) {
-			std::cout << "Client closed connection." << std::endl;
-		} else {
-			// Process request and generate response
-			RequestHandler responseGenerator(requestContent);
-			responseGenerator.buildResponse();
-			responseContent = responseGenerator.getHeader();
-			// std::cout << MAGENTA << responseContent << RESET << std::endl;
-			if (responseContent.empty()) { // TODO temp check to be changed
-				std::cerr << "Error generating response." << std::endl;
-				return;
-			}
-			responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
+		client.recv();
 
-			// Send response to client
-			client.send(responseContent);
+		// Process request and generate response
+		responseGenerator = HttpResponse(client.getRequest()); //rename to repsonse?
+		responseGenerator.buildResponse();
+		responseContent = responseGenerator.getHeader();
+		if (responseContent.empty()) { // TODO temp check to be changed
+			std::cerr << "Error generating response." << std::endl;
+			throw std::runtime_error("Error generating response.");
+			return;
 		}
+		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
+
+		// Send response to client
+		client.send(responseContent);
 	} 
 	catch (const std::runtime_error& e) {
 		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
 	}
 
-	// Remove clientFd from epoll
-	EpollManager::getInstance().removeFromEpoll(client_fd);
+	// Check if keep-alive is false before closing the connection
+	// TODO client.requestError() might not have to be checked here.
+	if (!client.keepAlive() || client.requestError() || responseGenerator.getErrorCode()){
+		// Remove clientFd from epoll
+		EpollManager::getInstance().removeFromEpoll(client_fd);
 
-	// Close connection
-	client.close();
+		// Close connection
+		client.close();
 
-	// Remove client from list(vector) of clients
-	_removeClient(client_fd);
+		// Remove client from list(vector) of clients
+		_removeClient(client_fd);
+	} else {
+		// Clear the request object for the next request
+		client.clearRequest();
+	}
+
 }
+// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.

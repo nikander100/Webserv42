@@ -1,5 +1,6 @@
 # Webserv42 [![Makefile CI](https://github.com/nikander100/Webserv42/actions/workflows/makefile.yml/badge.svg)](https://github.com/nikander100/Webserv42/actions/workflows/makefile.yml)
-42 Webserv Project by kkalika & nvan-der
+42 Webserv Project by  [nikander100](https://github.com/nikander100) & [kennyohhst](https://github.com/kennyohhst)
+
 
 
 # [Coding Guidelines](./docs/guidelines.md)

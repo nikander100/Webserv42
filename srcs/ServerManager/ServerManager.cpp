@@ -1,12 +1,12 @@
-#include "ServerContainer.hpp"
+#include "ServerManager.hpp"
 
-ServerContainer::ServerContainer() {
+ServerManager::ServerManager() {
 }
 
-ServerContainer::~ServerContainer() {
+ServerManager::~ServerManager() {
 }
 
-void ServerContainer::setupServers()
+void ServerManager::setupServers()
 {
 	std::unique_ptr<Server> testServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
 	_servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
@@ -16,7 +16,7 @@ void ServerContainer::setupServers()
 	}
 }
 
-void ServerContainer::startServers() {
+void ServerManager::startServers() {
 	std::vector<struct epoll_event> events;
 	while (true) {
 		events.clear();
@@ -28,7 +28,7 @@ void ServerContainer::startServers() {
 }
 
 // handles the events from epoll and redirects them to the correct server
-void ServerContainer::_handleEvent(const struct epoll_event &event) {
+void ServerManager::_handleEvent(const struct epoll_event &event) {
 	if (event.events & EPOLLIN) {
 		// check if its a existing server
 		if (_checkServer(event.data.fd)) {
@@ -47,7 +47,7 @@ void ServerContainer::_handleEvent(const struct epoll_event &event) {
 }
 
 // loop over servers chek if its exisiting server if yes accept connection else return false
-bool ServerContainer::_checkServer(const int &fd)
+bool ServerManager::_checkServer(const int &fd)
 {
 	for(auto &server : _servers)
 	{

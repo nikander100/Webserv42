@@ -1,284 +1,338 @@
-#include "HttpRequest.hpp"
+#include "../includes/HttpRequest.hpp"
+#include "Method.hpp"
 
-HttpRequest::HttpRequest()
-	: _path(""), _state(Request_Line), _wordIndex(0), _lineNumber(0),
-	_completeFlag(false), _skip(false), _storage(""), _keyStorage(""),
-	_methodIndex(1)
-{
-	_methodString[HttpMethod::GET] = "GET";
-	_methodString[HttpMethod::POST] = "POST";
-	_methodString[HttpMethod::DELETE] = "DELETE";
+
+HttpRequest::HttpRequest() : _state(Start), _method(Method::UNKNOWN), _errorCode(0), _verMajor(0), _verMinor(0),
+_contentLength(0), _chunkSize(0), _headers(), _body() {
 }
 
 HttpRequest::~HttpRequest() {
 }
 
-// check docs.md on info about uri.
-bool allowedUri(uint8_t ch) {
-	static std::set<uint8_t> allowedChars = {
-		'&', '\'', '(', ')', '*', '+', ',', '-', '.', '/', '0', '1', '2', '3', '4',
-		'5', '6', '7', '8', '9', ':', ';', '?', '@', '[', '!', '#', '$', '=', '_',
-		'~'
-	};
+bool HttpRequest::parsingComplete() const {
+	return _state == Complete;
+}
+// can possibly be removed
+// bool HttpRequest::parsingComplete() const {
+//     return _flagRequestMethodAndHeaderDone && (!_flagBody || _flagBodyDone);
+// }
 
-	// Add all the uppercase letters to the allowed characters
-	for (char c = 'A'; c <= 'Z'; ++c) {
-		allowedChars.insert(c);
+// checks http uri according to RFC 3986 (Uniform Resource Identifier) -- this s not needed for this project but easy to implement
+bool HttpRequest::isValidUri(const std::string &uri) {
+	const std::string allowedChars = 
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789"
+		"-._~:/?#[]@!$&'()*+,;=";
+
+	for (char c : uri) {
+		if (allowedChars.find(c) == std::string::npos) {
+			return false;
+		}
 	}
 
-	// Add all the lowercase letters to the allowed characters
-	for (char c = 'a'; c <= 'z'; ++c) {
-		allowedChars.insert(c);
-	}
-
-	return allowedChars.count(ch) > 0;
+	return true;
 }
 
+// checks http header according to RFC 2616 (HTTP/1.1) tokens are defined in RFC 2616 section 2.2
+bool HttpRequest::isValidToken(const std::string &token) {
+	const std::string allowedChars = 
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+		"abcdefghijklmnopqrstuvwxyz"
+		"0123456789"
+		"!#$%&'*+-.^_`|~";
 
-/* void HttpRequest::feed(const std::string& data) {
-	for(const auto& character : data){
-		if(_skip) {
-			_skip = false;
-			continue;
-		}
-
-		switch(_state)
-		{
-			case Request_Line:
-				handleRequestLine(character);
-				break;
-			case Request_Line_Method:
-				handleRequestMethod(character);
-				break;
-			case Request_Line_First_Space:
-				handleRequestFirstSpace(character);
-				break;
-			case Request_Line_Before_URI:
-				handleRequestBeforeURI(character);
-				break;
-			// Add other cases here...
-			default:
-				std::cout << "Invalid state" << std::endl;
-				return;
+	for (char c : token) {
+		if (allowedChars.find(c) == std::string::npos) {
+			return false;
 		}
 	}
+
+	return true;
 }
 
-void HttpRequest::handleRequestLine(const char& character) {
-	if (character == 'G')
-		_method = GET;
-	else if (character == 'P')
-		_method = POST;
-	else if (character == 'D')
-		_method = DELETE;
-	else
-	{
-		std::cout << "Wrong Method" << std::endl; 
-		return;
-	}
-	_state = Request_Line_Method;
-} */
+//currently up to standard RFC1945
+//new uri is RFC3986 but we only have to comply with the RFC for 
+//http1.0/1.1
+bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename to parserequest
+	std::regex pattern(R"(^(\w+)\s+(([^?#]*)(\?[^#]*)?(#.*)?)\s+HTTP/(\d)\.(\d)\r?$)");
+	std::smatch match;
 
+	if (std::regex_match(line, match, pattern)) {
+		_method = stringToMethod(match[1]);
+		_path = match[3];
+		_query = match[4].length() > 1 ? match.str(4).substr(1) : ""; // remove leading '?'
+		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
+		_verMajor = std::stoi(match[6]);
+		_verMinor = std::stoi(match[7]);
 
-// TODO convert funciton below to the one in the comment above, test if it works, if it does then possibly convert that to regex instead of a finite state machine.
-
-
-
-
-// Define other handler functions here...
-
-
-/**
- * @brief Feeds the HTTP request with data.
- * 
- * This function processes the provided data and updates the state of the HTTP request object accordingly.
- * This is a state machine that processes the data one byte at a time.
- * @param data A pointer to the data to be processed.
- * @param size The size of the data to be processed.
- */
-void HttpRequest::feed(char* data, size_t size) {
-	u_int8_t character;
-
-	for (size_t i = 0; i < size; ++i) {
-		character = data[i];
-		if (_skip) {
-			_skip = false;
-			continue;
+		// validate path more like RFC for improved security. (not required for the project but easy to implement)
+		if (!isValidUri(_path)) {
+			return false;
 		}
+		return _method != Method::UNKNOWN;
+	}
+	return false;
+}
 
+bool HttpRequest::parseHeader(const std::string &line) {
+	// Check if the string ends with '\r'
+	if (!line.empty() && line.back() == '\r') {
+		// Remove the '\r' character from the end of the string
+		std::string temp = line.substr(0, line.size() - 1);
+		// Now continue with parsing the modified string
+		// Use the modified string for matching
+		std::regex pattern(R"(\s*([^:\s]+):\s*([^\r]+)\s*)");
+		std::smatch match;
+		
+		if (std::regex_match(temp, match, pattern)) {
+			std::string key = match[1];
+			std::string value = match[2];
+
+			// convert key to lowercase
+			std::transform(key.begin(), key.end(), key.begin(), ::tolower);
+
+			// validate key
+			if (!isValidToken(key)) {
+				std::cerr << "Invalid header key" << std::endl;
+				return false;
+			}
+
+			// trim whitespaces from value
+			// value.erase(0, value.find_first_not_of(' ')); // leading
+			// value.erase(value.find_last_not_of(' ') + 1); // trailing
+
+			_headers[key] = value;
+
+			// possibly move this to a separate function/state..
+			if (key == "content-length") {
+				try {
+					_contentLength = std::stoul(value);
+				} catch (const std::invalid_argument& ia) {
+					std::cerr << "Invalid content-length: " << ia.what() << std::endl;
+					return false;
+				} catch (const std::out_of_range& oor) {
+					std::cerr << "Content-length out of range: " << oor.what() << std::endl;
+					return false;
+				}
+			}
+			return true;
+		}
+	}
+	return false;
+}
+
+bool HttpRequest::parseChunkSize(const std::string &line) {
+	std::istringstream hexStream(line);
+
+	// parse input  >> skip whitespaces >> parse hex value >> store in _chunkSize
+	hexStream >> std::ws >> std::hex >> _chunkSize;
+	// Check if the entire stream was parsed correctly
+	if (hexStream.fail() || !hexStream.eof()) {
+		return false;
+	}
+	return true;
+}
+
+void HttpRequest::print() const {
+	std::cout << "Method: " << methodToString(_method) << "\n";
+	std::cout << "Path: " << _path << "\n";
+	std::cout << "Query: " << _query << "\n";
+	std::cout << "Fragment: " << _fragment << "\n";
+	std::cout << "HTTP Version: " << static_cast<int>(_verMajor) << "." << static_cast<int>(_verMinor) << "\n";
+	std::cout << "Headers:\n";
+	for (const auto& header : _headers) {
+		std::cout << header.first << ": " << header.second << "\n";
+	}
+	std::cout << "Body:\n" << _body << "\n";
+}
+
+bool HttpRequest::feed(const std::string &data) {
+	std::istringstream stream(data);
+	std::string line;
+
+	while (_state != Complete) {
+		
 		switch (_state) {
-			case Request_Line:
-				switch (character) {
-					case 'G': _method = GET; break;
-					case 'P': _method = POST; break;
-					case 'D': _method = DELETE; break;
-					default: std::cout << "Wrong Method" << std::endl; return;
+			case Start: {
+				if (!std::getline(stream, line)) {
+					std::cerr << "Failed to read request line" << std::endl;
+					return false;
+					_errorCode = 1;
 				}
-				_state = Request_Line_Method;
-				break;
 
-			case Request_Line_Method:
-				if (character == _methodString[_method][_methodIndex])
-					_methodIndex++;
-				if (static_cast<std::string::size_type>(_methodIndex) == _methodString[_method].length())
-					_state = Request_Line_First_Space;
-				break;
-
-			case Request_Line_First_Space:
-				if (character != ' ') {
-					std::cout << "Bad Character (First_Space)" << std::endl; return;
-				}
-				_state = Request_Line_Before_URI;
-				break;
-
-			case Request_Line_Before_URI:
-				if (character == ' ' || character == '\r' || character == '\n' || !allowedUri(character)) {
-					std::cout << "Bad Character (Before_URI)" << std::endl; return;
-				}
-				_storage.clear();
-				_state = Request_Line_URI;
-				break;
-
-			case Request_Line_URI:
-				if (character == ' ') {
-					_path.append(_storage);
-					_storage.clear();
-					_state = Request_Line_Ver;
-				} else if (!allowedUri(character)) {
-					std::cout << "Bad Character (URI)" << std::endl; return;
+				if (parseRequestLine(line)) {
+					_state = Method_Line_Parsed;
 				} else {
-					_storage += character;
+					_errorCode = 1;
+					std::cerr << "Invalid request line" << std::endl;
+					return false;
 				}
 				break;
-
-			case Request_Line_Ver:
-				if (character != 'H') {
-					std::cout << "Bad Version" << std::endl; return;
+			}
+			case Method_Line_Parsed: {
+				if (!std::getline(stream, line)) {
+					_errorCode = 1;
+					std::cerr << "Failed to read request line" << std::endl;
+					return false;
 				}
-				_state = Request_Line_HT;
-				break;
 
-			case Request_Line_HT:
-				if (character != 'T') {
-					std::cout << "Bad Version" << std::endl; return;
-				}
-				_state = Request_Line_HTT;
-				break;
-
-			case Request_Line_HTT:
-				if (character != 'T') {
-					std::cout << "Bad Version" << std::endl; return;
-				}
-				_state = Request_Line_HTTP;
-				break;
-
-			case Request_Line_HTTP:
-				if (character != 'P') {
-					std::cout << "Bad Version" << std::endl; return;
-				}
-				_state = Request_Line_HTTP_Slash;
-				break;
-
-			case Request_Line_HTTP_Slash:
-				if (character != '/') {
-					std::cout << "Bad Version(Slash)" << std::endl; return;
-				}
-				_state = Request_Line_Major;
-				break;
-
-			case Request_Line_Major:
-				if (!isdigit(character)) {
-					std::cout << "Bad Version(Major)" << std::endl; return;
-				}
-				_verMajor = character - '0';
-				_state = Request_Line_Dot;
-				break;
-
-			case Request_Line_Dot:
-				if (character != '.') {
-					std::cout << "Bad Version(Dot)" << std::endl; return;
-				}
-				_state = Request_Line_Minor;
-				break;
-
-			case Request_Line_Minor:
-				if (!isdigit(character)) {
-					std::cout << "Bad Version(Minor)" << std::endl; return;
-				}
-				_verMinor = character - '0';
-				_state = Request_Line_CR;
-				break;
-
-			case Request_Line_CR:
-				if (character != '\r') {
-					std::cout << "Bad Character(Request_Line_CR)" << std::endl; return;
-				}
-				_state = Request_Line_LF;
-				break;
-
-			case Request_Line_LF:
-				if (character != '\n') {
-					std::cout << "Bad Character(Request_Line_LF)" << std::endl; return;
-				}
-				_state = H_Key;
-				break;
-
-			case H_Key:
-				if (character == ':') {
-					_keyStorage = _storage;
-					_storage.clear();
-					_state = H_Value;
-					continue;
-				} else if (character == '\r') {
-					_completeFlag = true;
-					break;
+				if (line == "\r") {
+					// _flagRequestMethodAndHeaderDone = true;
+					_state = Header_Parsed;
+				} else if (!parseHeader(line)) {
+					_errorCode = 1;
+					std::cerr << "Invalid header" << std::endl;
+					return false;
 				}
 				break;
-
-			case H_Value:
-				if (character == '\r') {
-					setHeader(_keyStorage, _storage);
-					_keyStorage.clear();
-					_storage.clear();
-					_skip = true;
-					_state = H_Key;
-					continue;
+			}
+			case Header_Parsed: {
+				stream.ignore(1); // Skip \r\n
+				if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
+					// _flagBody = true;
+					if (_headers.find("content-length") != _headers.end()) {
+						_errorCode = 1;
+						std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
+						return false;
+					}
+					_state = Reading_Chunk_Size;
+				} else if (_contentLength > 0) {
+					// _flagBody = true;
+					_state = Reading_Body_Data;
+				} else {
+					// check if request is malformed
+					if (!stream.eof()) {
+						_errorCode = 1;
+						std::cerr << "Malformed request" << std::endl;
+						return false;
+					}
+					_state = Complete;
 				}
 				break;
-
+			}
+			case Reading_Body_Data: {
+				if (_contentLength > 0 && stream.tellg() + static_cast<std::streamoff>(_contentLength) <= static_cast<std::streamoff>(data.size())) {
+					_body = data.substr(stream.tellg(), _contentLength);
+					stream.seekg(_contentLength, std::ios::cur); // Move the get pointer forward
+					// _flagBodyDone = true;
+					_state = Complete;
+				} else {
+					_errorCode = 1; //TODO: IMPLEMENT ERROR HANDLING FOR THIS NOW JUST HARDCODED FOR IT TO WORK.
+					std::cerr << "Invalid content-length or incomplete body" << std::endl;
+					_state = Complete;
+				}
+				break;
+			}
+			case Reading_Chunk_Size: {
+				if (!std::getline(stream, line)) {
+					_errorCode = 1;
+					std::cerr << "Failed to read chunk size" << std::endl;
+					return false;
+				}
+				if (!parseChunkSize(line)) {
+					_errorCode = 1;
+					std::cerr << "Invalid chunk size" << std::endl;
+					return false;
+				}
+				if (_chunkSize == 0) {
+					_state = Complete;
+				} else {
+					_state = Reading_Chunk_Data;
+				}
+				break;
+			}
+			case Reading_Chunk_Data: {
+				if (stream.tellg() + static_cast<std::streamoff>(_chunkSize + 2) <= static_cast<std::streamoff>(data.size())) {
+					_body.append(data.substr(stream.tellg(), _chunkSize));
+					stream.seekg(_chunkSize, std::ios::cur); // Move the get pointer forward
+					stream.ignore(2); // Skip trailing \r\n
+					// _flagBodyDone = true;
+					_state = Reading_Chunk_Size;
+				} else {
+					_errorCode = 1;
+					std::cerr << "Incomplete chunk data" << std::endl;
+					return false;
+				}
+				break;
+			}
 			default:
-				std::cout << "Invalid state" << std::endl;
-				return;
+				std::cerr << "Unkown state" << std::endl;
+				_errorCode = 1;
+				return false;
+				// instead of returning set error flag so later can reset the request object.
+					// send bad ... response.
+
 		}
-
-		_storage += character;
+		if (_state == Complete) {
+			break;
+		}
 	}
+	return true;
 }
 
-bool HttpRequest::parsingCompleted() {
-	return _completeFlag;
-}
-
-HttpMethod &HttpRequest::getMethod() {
+const Method &HttpRequest::getMethod() const {
 	return _method;
 }
-void HttpRequest::setMethod(HttpMethod & method) {
-	_method = method;
+
+const std::string &HttpRequest::getPath() const {
+	return _path;
 }
 
-std::string &HttpRequest::getHeader(std::string &name){
-	return _requestHeaders[name];
-}
-void HttpRequest::setHeader(std::string name, std::string value) {
-	_requestHeaders[name] = value;
+const std::string &HttpRequest::getQuery() const {
+	return _query;
 }
 
-void HttpRequest::printMessage()
-{
-	std::cout << _methodString[_method] + " " + _path + " " + "HTTP/" << _verMajor << "." << _verMinor << '\n';
+const std::string &HttpRequest::getFragment() const {
+	return _fragment;
+}
 
-	for(const auto& header : _requestHeaders)
-	{
-		std::cout << header.first << ":" << header.second << '\n';
+const std::string &HttpRequest::getHeader(const std::string &key) const {
+	return _headers.at(key); // TODO: possibly vhange this to find and return empty string if not found.
+}
+// const std::string &HttpRequest::getHeader(const std::string &key) const {
+// 	auto it = _headers.find(key);
+// 	if (it != _headers.end()) {
+// 		return it->second;
+// 	} else {
+// 		static const std::string emptyString;
+// 		return emptyString;
+// 	}
+// }
+
+int HttpRequest::errorCode() const {
+	return _errorCode;
+}
+
+bool HttpRequest::keepAlive() const {
+	if (_verMajor == 1 && _verMinor == 1) {
+		if (_headers.find("connection") != _headers.end()) {
+			if (_headers.at("connection") == "close") {
+				return false;
+			}
+			return _headers.at("connection") == "keep-alive";
+		}
+		return true;
+	} else if (_verMajor == 1 && _verMinor == 0) {
+		if (_headers.find("connection") != _headers.end()) {
+			return _headers.at("connection") != "close";
+		}
+		return false;
 	}
+	return false;
+}
+
+void HttpRequest::reset() {
+	_state = Start;
+	_method = Method::UNKNOWN;
+	_errorCode = 0;
+	_path.clear();
+	_query.clear();
+	_fragment.clear();
+	_verMajor = 0;
+	_verMinor = 0;
+	_contentLength = 0;
+	_chunkSize = 0;
+	_headers.clear();
+	_body.clear();
 }

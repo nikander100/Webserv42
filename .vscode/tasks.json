@@ -4,7 +4,7 @@
 		{
 			"label": "build", // The task's label
 			"type": "shell",
-			"command": "[ ! -f /testServer.out ] && make", // replace /path/to/your/file with the path to your file
+			"command": "[ ! -f /testServer.out ] && make DEBUG_LEVEL=1", // replace /path/to/your/file with the path to your file
 			"group": {
 				"kind": "build",
 				"isDefault": true

@@ -43,6 +43,26 @@
 			"preLaunchTask": "reBuild", // name of the task to run before debugging
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
+		{
+			"name": "g++ - requesttest",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "${workspaceFolder}/tests/httpRequestTest.out", // replace <your-program> with your actual program's path
+			"args": [""], // command line arguments go here
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				}
+			],
+			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
+		},
 		// {
 		// 	"type": "lldb",
 		// 	"request": "launch",
