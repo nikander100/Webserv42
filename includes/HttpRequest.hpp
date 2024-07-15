@@ -3,6 +3,7 @@
 
 #include "Webserv.hpp"
 #include "Method.hpp"
+#include "HttpStatusCodes.hpp"
 
 /**
  * @brief Enumeration representing the different parsing states during HTTP request parsing.
@@ -26,7 +27,7 @@ class HttpRequest
 		bool parsingComplete() const;
 		void print() const;
 		void reset();
-		int errorCode() const;
+		HttpStatusCodes errorCode() const;
 		bool keepAlive() const;
 
 		const Method &getMethod() const;
@@ -40,7 +41,7 @@ class HttpRequest
 	private:
 		State _state;
 		Method _method;
-		int _errorCode;
+		HttpStatusCodes _errorCode;
 		bool _flagRequestMethodAndHeaderDone; // can possibly be removed
 		bool _flagBody; // can possibly be removed
 		bool _flagBodyDone; // can possibly be removed

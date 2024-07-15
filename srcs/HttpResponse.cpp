@@ -11,19 +11,16 @@ HttpResponse::HttpResponse(HttpRequest &request) : _request(request) {
 }
 
 void HttpResponse::addHeaders() {
-	static const std::map<std::string, std::string> mimeTypes = {
-		{".html", "text/html"},
-		{".jpg", "image/jpeg"},
-		{".ico", "image/x-icon"},
-		{".css", "text/css"},
-		{".svg", "image/svg+xml"},
-		{".js", "application/javascript"}
-		// Add more MIME types as needed
-	};
 	DEBUG_PRINT("File is = " << _request.getPath());
+
+	// Get file path and extract extension
 	std::string path = _request.getPath();
 	std::string extension = path.rfind('.') != std::string::npos ? path.substr(path.rfind('.')) : "";
-	std::string mimeType = mimeTypes.count(extension) ? mimeTypes.at(extension) : "text/plain";
+	
+	// Determine MIME type
+	std::string mimeType = getMimeTypeFromExtension(extension);
+
+	// Add necessary headers to the response header
 	_responseHeader.append("Content-Type: " + mimeType + "\r\n");
 	_responseHeader.append("Content-Length: " + std::to_string(_responseBodyLength) + "\r\n");
 	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
@@ -95,7 +92,7 @@ void HttpResponse::readFile() { // TODO make dynamic
 	/* DEBUG END */
 }
 
-int HttpResponse::getErrorCode() const
+HttpStatusCodes HttpResponse::getErrorCode() const
 {
 	return _request.errorCode(); // TODO REMOVE THIS, THIS TS TEMP
 	return _errorCode;

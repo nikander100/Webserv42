@@ -2,6 +2,8 @@
 
 #include "Webserv.hpp"
 #include "HttpRequest.hpp"
+#include "HttpStatusCodes.hpp"
+#include "MimeTypes.hpp"
 
 /* 
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
@@ -17,7 +19,7 @@ class HttpResponse
 		std::string getHeader();
 		const char *getBody();
 		size_t getBodyLength();
-		int getErrorCode() const;
+		HttpStatusCodes getErrorCode() const;
 
 	private:
 		HttpRequest _request;
@@ -29,7 +31,7 @@ class HttpResponse
 		std::vector<char> _responseBody;
 		std::string _responseHeader;
 		// std::string _responseContent;
-		int _errorCode;
+		HttpStatusCodes _errorCode;
 
 		bool buildBody();
 		void addStatus();

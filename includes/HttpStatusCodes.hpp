@@ -1,6 +1,7 @@
 #pragma once
 
 enum class HttpStatusCodes {
+	NONE = 0,
 	CONTINUE = 100,
 	SWITCHING_PROTOCOLS = 101,
 	PROCESSING = 102,

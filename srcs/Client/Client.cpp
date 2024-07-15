@@ -44,7 +44,7 @@ bool Client::requestState() const {
 	return _request.parsingComplete();
 }
 
-bool Client::requestError() const {
+HttpStatusCodes Client::requestError() const {
 	return _request.errorCode();
 }
 

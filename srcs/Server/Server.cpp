@@ -557,8 +557,7 @@ void Server::handleRequest(const int &client_fd) {
 	}
 
 	// Check if keep-alive is false before closing the connection
-	// TODO client.requestError() might not have to be checked here.
-	if (!client.keepAlive() || client.requestError() || responseGenerator.getErrorCode()){
+	if (!client.keepAlive() || client.requestError() != HttpStatusCodes::NONE || responseGenerator.getErrorCode() != HttpStatusCodes::NONE){
 		// Remove clientFd from epoll
 		EpollManager::getInstance().removeFromEpoll(client_fd);
 

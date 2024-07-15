@@ -25,7 +25,7 @@ class Client {
 		HttpRequest &getRequest();
 		void feed(const std::string &data); // can be made private
 		bool requestState() const;
-		bool requestError() const;
+		HttpStatusCodes requestError() const;
 		void clearRequest();
 		bool keepAlive() const;
 	
