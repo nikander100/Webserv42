@@ -5,6 +5,7 @@ Client::Client(std::unique_ptr<ClientSocket> socket)
 }
 
 Client::~Client() {
+	_socket->close();
 }
 
 int Client::getFd() const {

@@ -1,11 +1,13 @@
 #pragma once
 #include "Webserv.hpp"
+
 #include "HttpResponse.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
 #include "Client.hpp"
+#include "Location.hpp"
 
-class Location;
+#include "Method.hpp"
 
 class Server {
 public:
@@ -13,12 +15,6 @@ public:
 	Server(const Server &copy) = delete;
 	Server &operator = (const Server &rhs) = delete;
 	virtual ~Server(void);
-
-
-	// Accessors for the 'id' member variable.
-
-	int getId(void) const;
-	void setId(int id);
 
 	// Accessors for the 'servername' member variable.
 
@@ -60,20 +56,19 @@ public:
 	int getListenFd(void) const;
 
 	// Accessors for the 'errorPages' member variable.
-	// const std::map<short, std::string> &getErrorPages(void) const;
-	// const std::string &getErrorPagePath(short key);
-	// void setErrorPages(const std::map<short, std::string>& errorpages);
+	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
+	std::pair<bool, std::string> getErrorPage(HttpStatusCodes key);
+	void setErrorPages(const std::vector<std::string> &error_pages);
+	void setErrorPage(HttpStatusCodes key, std::string path);
 
 	// Accessors for the 'locations' member variable.
-	// const std::vector<Location> &getLocations(void);
-	// const std::vector<Location>::iterator getlocationByKey(std::string key);
-	// void setLocation(const std::string& locationName, const std::vector<std::string>& location);
+	const std::unordered_map<std::string, Location> &getLocations(void);
+	const Location &getLocation(const std::string &path);
+	void setLocation(const std::string &path, std::vector<std::string> &location);
 
 	// Accessors for the 'serverAddress' member variable.
 	const sockaddr_in getServerAddress() const;
 	// void setServerAddress(struct sockaddr_in serveraddress); possibly not needed.
-
-	bool validErrorPages(void);
 
 
 	void run();
@@ -82,9 +77,6 @@ public:
 	bool handlesClient(const int &clientFd);
 	void acceptNewConnection();
 	void handleRequest(const int& clientFd);
-	//canbeprivate?
-	// void sendResponse()
-
 
 
 	class Error : public std::exception {
@@ -100,7 +92,6 @@ public:
 	};
 
 private:
-	int _id;
 	std::string _serverName;
 	uint16_t _port; //dont use internally, use the _socket.getFd() instead.
 	in_addr_t _host; // dont use internally, use the _socket.getaddress() instead.
@@ -108,18 +99,31 @@ private:
 	unsigned long _clientMaxBodySize;
 	std::string _index;
 	bool _autoindex;
-	std::map<short, std::string> _errorPages;
-	// std::vector<Location> _locations;
+	std::unordered_map<HttpStatusCodes, std::string> _errorPages;
+	std::unordered_map<std::string, Location> _locations;
 	
-	ServerSocket _socket;
+	ServerSocket _socket; // TODO make this a unique_ptr
 
 	static void checkInput(std::string &inputcheck);
-	void initErrorPages(void);
 
 	//newcodesplitsbs
 	std::vector<std::unique_ptr<Client>> _clients;
 	Client &_getClient(const int &clientFd);
 	void _removeClient(int clientFd);
+
+	//newcodelocation&errorpages
+	enum class CgiValidation {
+		VALID = 0,
+		FAILED_CGI_VALIDATION,
+		FAILED_ROOT_VALIDATION,
+		FAILED_RETURN_VALIDATION,
+		FAILED_ALIAS_VALIDATION,
+		FAILED_INDEX_VALIDATION
+	};
+	bool validLocations(void);
+	CgiValidation isValidLocation(Location &location) const;
+	bool isValidCgiExtension(const std::string& ext, const std::string& path) const;
+
 	
 
 
