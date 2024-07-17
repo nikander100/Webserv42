@@ -528,7 +528,7 @@ void Server::_removeClient(int client_fd) {
 
 void Server::handleRequest(const int &client_fd) {
 	// Handle requests from clients
-	HttpResponse responseGenerator;
+	HttpResponse responseGenerator(*this);
 	std::string responseContent;
 	Client& client = _getClient(client_fd);
 
@@ -539,7 +539,7 @@ void Server::handleRequest(const int &client_fd) {
 		client.recv();
 
 		// Process request and generate response
-		responseGenerator = HttpResponse(client.getRequest()); //rename to repsonse?
+		responseGenerator.setRequest(client.getRequest()); //rename to repsonse?
 		responseGenerator.buildResponse();
 		responseContent = responseGenerator.getHeader();
 		if (responseContent.empty()) { // TODO temp check to be changed

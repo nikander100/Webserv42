@@ -1,7 +1,6 @@
 #pragma once
 
 #include "Webserv.hpp"
-#include "Server.hpp"
 #include "HttpRequest.hpp"
 #include "HttpStatusCodes.hpp"
 #include "MimeTypes.hpp"
@@ -11,6 +10,7 @@
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
 	_request_line, _request_headers, _request_body. And build the response message.
 */
+class Server;
 class HttpResponse
 {
 	public:
@@ -19,7 +19,7 @@ class HttpResponse
 		~HttpResponse();
 
 		void setRequest(HttpRequest &request);
-		void setServer(Server &server);
+		void setServer(Server &server); // possibly redundant.
 
 		std::string getResponse();
 		size_t getBodyLength();

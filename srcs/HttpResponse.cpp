@@ -10,6 +10,10 @@ HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(serve
 HttpResponse::~HttpResponse() {
 }
 
+void HttpResponse::setRequest(HttpRequest &request) {
+	_request = request;
+}
+
 void HttpResponse::setHeaders() {
 	DEBUG_PRINT("File is = " << _request.getPath());
 
