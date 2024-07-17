@@ -1,16 +1,16 @@
 #include "HttpResponse.hpp"
 
-HttpResponse::HttpResponse() {
+HttpResponse::HttpResponse(Server &server) : _server(server) {
+}
+
+HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request) {
+	request.print();
 }
 
 HttpResponse::~HttpResponse() {
 }
 
-HttpResponse::HttpResponse(HttpRequest &request) : _request(request) {
-	request.print();
-}
-
-void HttpResponse::addHeaders() {
+void HttpResponse::setHeaders() {
 	DEBUG_PRINT("File is = " << _request.getPath());
 
 	// Get file path and extract extension
@@ -28,8 +28,8 @@ void HttpResponse::addHeaders() {
 
 void HttpResponse::buildResponse() {
 	if (buildBody()) {
-		addStatus();
-		addHeaders();
+		setStatus();
+		setHeaders();
 	}
 	// Temp for testing only
 }
@@ -39,14 +39,14 @@ std::string HttpResponse::getHeader() {
 }
 
 const char *HttpResponse::getBody() {
-	return _responseBody.data();
+	return reinterpret_cast<char*>(_responseContent.data());
 }
 
 size_t HttpResponse::getBodyLength() {
-	return std::max(_responseBodyLength, _responseBody.size());
+	return std::max(_responseBodyLength, _responseContent.size());
 }
 
-void HttpResponse::addStatus() {
+void HttpResponse::setStatus() {
 	// For testing Assume no errors for now.
 	_responseHeader.append("HTTP/1.1 200 OK\n");
 }
@@ -73,8 +73,8 @@ void HttpResponse::readFile() { // TODO make dynamic
 	_responseBodyLength = static_cast<size_t>(fin.tellg());
 	DEBUG_PRINT(GREEN, "bodylength in readfile: " << _responseBodyLength);
 	fin.seekg(0, std::ios::beg);
-	_responseBody.resize(_responseBodyLength);
-	if (!fin.read(_responseBody.data(), _responseBodyLength)) {
+	_responseContent.resize(_responseBodyLength);
+	if (!fin.read(reinterpret_cast<char*>(_responseContent.data()), _responseBodyLength)) {
 		std::cerr << "webserv: read error: " << strerror(errno) << std::endl;
 		throw std::runtime_error("Failed to read file");
 	}
@@ -82,13 +82,13 @@ void HttpResponse::readFile() { // TODO make dynamic
 	/* DEBUG START */
 	if (file_path.substr(file_path.find_last_of(".")) == ".html") {
 		std::cout << YELLOW << "YEE: ";
-		for (char c : _responseBody) {
+		for (char c : _responseContent) {
 			std::cout << c;
 		}
 		std::cout << RESET << std::endl;
 	}
 	std::cout << RESET << std::endl;
-	DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
+	DEBUG_PRINT("Image size: " << _responseContent.size() << " bytes");
 	/* DEBUG END */
 }
 

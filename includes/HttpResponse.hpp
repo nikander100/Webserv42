@@ -1,9 +1,11 @@
 #pragma once
 
 #include "Webserv.hpp"
+#include "Server.hpp"
 #include "HttpRequest.hpp"
 #include "HttpStatusCodes.hpp"
 #include "MimeTypes.hpp"
+#include "CgiPipe.hpp"
 
 /* 
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
@@ -12,30 +14,68 @@
 class HttpResponse
 {
 	public:
-		HttpResponse();
-		HttpResponse(HttpRequest &request);
+		HttpResponse(Server &server);
+		HttpResponse(Server &server, HttpRequest &request);
 		~HttpResponse();
-		void buildResponse();
-		std::string getHeader();
-		const char *getBody();
+
+		void setRequest(HttpRequest &request);
+		void setServer(Server &server);
+
+		std::string getResponse();
 		size_t getBodyLength();
 		HttpStatusCodes getErrorCode() const;
 
+		void buildResponse();
+		void reset();
+		// void handleCgi();
+		// void cutResponse();
+		// int getCgistate();
+		// void setCgistate(int state);
+		// void setResponse(HttpStatusCodes code);
+		std::string getHeader(); //redundant?
+		const char *getBody(); // redundant?
+
+		// CgiHander cgi_obj;
+
+		// std::string removeBoundary(std::string &body, std::string &boundary);
+		// std::string responseContent;
+
 	private:
+		Server &_server;
 		HttpRequest _request;
 
-		std::string _requestLine[3]; // redundant
 		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>
 		// std::map<std::string, std::string> _requset_heaeders;
+
+		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
 		size_t _responseBodyLength;
-		std::vector<char> _responseBody;
+
 		std::string _responseHeader;
-		// std::string _responseContent;
 		HttpStatusCodes _errorCode;
 
-		bool buildBody();
-		void addStatus();
-		void addHeaders();
-		void readFile();
 		// void tokenize(std::string&, std::string&, std::string del = "\n");
+
+		// new code refactor to dynamic response:
+		std::string _targetFile;
+		std::string _location;
+		bool _cgi;
+		CgiPipe _cgiPipe;
+		size_t cgiResponseSize; //redundant?
+		bool _autoindex;
+
+		bool buildBody();
+		void setStatus();
+		void setHeaders();
+		//seterrorpage TODO implement server ref in thi sclass to access the errorpages.
+		void readFile();
+		void appendContentTypeHeader();
+		void appendContentLengthHeader();
+		void appendConnectionTypeHeader();
+		void appendServerHeader();
+		void appendLocationHeader(); // redirectheader.
+		void appendDateHeader();
+
+		void handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
+		void handleCgi();
+		void handleCgiTemp(); // to be renamed
 };
