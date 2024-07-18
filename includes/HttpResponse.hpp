@@ -4,7 +4,7 @@
 #include "HttpRequest.hpp"
 #include "HttpStatusCodes.hpp"
 #include "MimeTypes.hpp"
-#include "CgiPipe.hpp"
+#include "Pipe.hpp"
 
 /* 
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
@@ -59,7 +59,7 @@ class HttpResponse
 		std::string _targetFile;
 		std::string _location;
 		bool _cgi;
-		CgiPipe _cgiPipe;
+		Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
 		bool _autoindex;
 

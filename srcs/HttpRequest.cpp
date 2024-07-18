@@ -286,7 +286,7 @@ const std::string &HttpRequest::getPath() const {
 	return _path;
 }
 
-const std::string &HttpRequest::getQuery() const {
+std::string &HttpRequest::getQuery() {
 	return _query;
 }
 
@@ -295,7 +295,7 @@ const std::string &HttpRequest::getFragment() const {
 }
 
 const std::string &HttpRequest::getHeader(const std::string &key) const {
-	return _headers.at(key); // TODO: possibly vhange this to find and return empty string if not found.
+	return _headers.at(key); // TODO: possibly change this to find and return empty string if not found.
 }
 // const std::string &HttpRequest::getHeader(const std::string &key) const {
 // 	auto it = _headers.find(key);
@@ -306,6 +306,14 @@ const std::string &HttpRequest::getHeader(const std::string &key) const {
 // 		return emptyString;
 // 	}
 // }
+
+std::unordered_map<std::string, std::string> HttpRequest::getHeaders() const {
+	return _headers;
+}
+
+const std::string &HttpRequest::getBody() const {
+	return _body;
+}
 
 HttpStatusCodes HttpRequest::errorCode() const {
 	return _errorCode;

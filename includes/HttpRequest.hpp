@@ -32,19 +32,16 @@ class HttpRequest
 
 		const Method &getMethod() const;
 		const std::string &getPath() const;
-		const std::string &getQuery() const;
+		std::string &getQuery();
 		const std::string &getFragment() const;
 		const std::string &getHeader(const std::string &key) const;
-		// std::unordered_map<std::string, std::string> getHeaders() const;
-
+		std::unordered_map<std::string, std::string> getHeaders() const;
+		const std::string &getBody() const;
 
 	private:
 		State _state;
 		Method _method;
 		HttpStatusCodes _errorCode;
-		bool _flagRequestMethodAndHeaderDone; // can possibly be removed
-		bool _flagBody; // can possibly be removed
-		bool _flagBodyDone; // can possibly be removed
 
 		std::string _path;
 		std::string _query;
