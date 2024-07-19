@@ -2,7 +2,7 @@
 
 #include "Webserv.hpp"
 #include "ClientSocket.hpp"
-#include "HttpRequest.hpp
+#include "HttpRequest.hpp"
 #include "HttpResponse.hpp"
 #include "HttpStatusCodes.hpp"
 

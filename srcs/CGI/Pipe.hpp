@@ -44,7 +44,7 @@ class Pipe {
 			if (pipe(pipefds) < 0) {
 				return false;
 			}
-			true;
+			return true;
 		}
 
 	private:
