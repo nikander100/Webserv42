@@ -35,6 +35,10 @@ private:
 	// Private member functions
 	// void _acceptNewConnection(Server &);
 	// void _handleRequest(const int &fd);
-	bool _checkServer(const int &fd);
-	void _handleEvent(const struct epoll_event &event);
+	void waitForAndHandleEvents(std::vector<struct epoll_event>& events);
+	void handleEvent(const struct epoll_event &event);
+	bool isReadableEvent(const struct epoll_event &event);
+	bool tryHandlingServerEvent(const struct epoll_event &event);
+	void delegateToResponsibleServer(const struct epoll_event &event);
+	bool ServerSocketEvent(const int &fd);
 };

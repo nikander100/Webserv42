@@ -30,6 +30,7 @@ class HttpRequest
 		HttpStatusCodes errorCode() const;
 		bool keepAlive() const;
 
+		const std::string &getServerName() const;
 		const Method &getMethod() const;
 		const std::string &getPath() const;
 		std::string &getQuery();
@@ -37,12 +38,14 @@ class HttpRequest
 		const std::string &getHeader(const std::string &key) const;
 		std::unordered_map<std::string, std::string> getHeaders() const;
 		const std::string &getBody() const;
+		const std::string &getBoundary() const;
 
 	private:
 		State _state;
 		Method _method;
 		HttpStatusCodes _errorCode;
 
+		std::string _serverName;
 		std::string _path;
 		std::string _query;
 		std::string _fragment; // Fragment is client side only but we store it for data collection purposes.
@@ -51,6 +54,7 @@ class HttpRequest
 		size_t _chunkSize;
 		std::unordered_map<std::string, std::string> _headers;
 		std::string _body;
+		std::string _boundary;
 		// std::vector<std::string> _bodyChunks;
 		// std::vector<u_int8_t> body;
 
@@ -58,6 +62,7 @@ class HttpRequest
 		bool isValidToken(const std::string &token);
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
+		bool handleHeaders(std::istream &stream);
 		// void parseBodyData(const std::string &data, size_t &pos);
 		bool parseChunkSize(const std::string &line);
 

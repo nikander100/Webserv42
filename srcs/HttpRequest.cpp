@@ -1,7 +1,9 @@
 #include "../includes/HttpRequest.hpp"
 
-HttpRequest::HttpRequest() : _state(Start), _method(Method::UNKNOWN), _errorCode(HttpStatusCodes::NONE), _verMajor(0), _verMinor(0),
-_contentLength(0), _chunkSize(0), _headers(), _body() {
+HttpRequest::HttpRequest() : 
+	_state(Start), _method(Method::UNKNOWN), _errorCode(HttpStatusCodes::NONE), _serverName(""),
+	_path(""), _query(""), _fragment(""), _verMajor(0), _verMinor(0), _contentLength(0),
+	_chunkSize(0), _headers(), _body(""), _boundary(""){
 }
 
 HttpRequest::~HttpRequest() {
@@ -107,23 +109,59 @@ bool HttpRequest::parseHeader(const std::string &line) {
 			// value.erase(value.find_last_not_of(' ') + 1); // trailing
 
 			_headers[key] = value;
-
-			// possibly move this to a separate function/state..
-			if (key == "content-length") {
-				try {
-					_contentLength = std::stoul(value);
-				} catch (const std::invalid_argument& ia) {
-					std::cerr << "Invalid content-length: " << ia.what() << std::endl;
-					return false;
-				} catch (const std::out_of_range& oor) {
-					std::cerr << "Content-length out of range: " << oor.what() << std::endl;
-					return false;
-				}
-			}
 			return true;
 		}
 	}
 	return false;
+}
+
+bool HttpRequest::handleHeaders(std::istream& stream) {
+	stream.ignore(1); // Skip \r\n
+	if (_headers.find("host") != _headers.end()) {
+		_serverName = _headers["host"];
+	} else {
+		_errorCode = HttpStatusCodes::BAD_REQUEST;
+		std::cerr << "Invalid request: Host header missing" << std::endl;
+		return false;
+	}
+	if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
+		if (_headers.find("content-length") != _headers.end()) {
+			_errorCode = HttpStatusCodes::BAD_REQUEST;
+			std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
+			return false;
+		}
+		_state = Reading_Chunk_Size;
+	} else if (_headers.find("content-length") != _headers.end()) {
+		try {
+			_contentLength = std::stoul(_headers["content-length"]);
+		} catch (const std::invalid_argument& ia) {
+			std::cerr << "Invalid content-length: " << ia.what() << std::endl;
+			return false;
+		} catch (const std::out_of_range& oor) {
+			std::cerr << "Content-length out of range: " << oor.what() << std::endl;
+			return false;
+		}
+		_state = Reading_Body_Data;
+	} else if (_headers.find("content-type") != _headers.end() && _headers["content-type"].find("multipart/form-data") != std::string::npos) {
+		size_t pos = _headers["content-type"].find("boundary=");
+		if (pos != std::string::npos) {
+			_boundary = _headers["content-type"].substr(pos + 9);
+		} else {
+			_errorCode = HttpStatusCodes::BAD_REQUEST;
+			std::cerr << "Invalid request: multipart/form-data boundary missing" << std::endl;
+			return false;
+		}
+		_state = Reading_Body_Data; // Or a specific multipart state if needed
+	} else {
+		// check if request is malformed
+		if (!stream.eof()) {
+			_errorCode = HttpStatusCodes::BAD_REQUEST;
+			std::cerr << "Malformed request" << std::endl;
+			return false;
+		}
+		_state = Complete;
+	}
+	return true;
 }
 
 bool HttpRequest::parseChunkSize(const std::string &line) {
@@ -195,26 +233,8 @@ bool HttpRequest::feed(const std::string &data) {
 				break;
 			}
 			case Header_Parsed: {
-				stream.ignore(1); // Skip \r\n
-				if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
-					// _flagBody = true;
-					if (_headers.find("content-length") != _headers.end()) {
-						_errorCode = HttpStatusCodes::BAD_REQUEST;
-						std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
-						return false;
-					}
-					_state = Reading_Chunk_Size;
-				} else if (_contentLength > 0) {
-					// _flagBody = true;
-					_state = Reading_Body_Data;
-				} else {
-					// check if request is malformed
-					if (!stream.eof()) {
-						_errorCode = HttpStatusCodes::BAD_REQUEST;
-						std::cerr << "Malformed request" << std::endl;
-						return false;
-					}
-					_state = Complete;
+				if (!handleHeaders(stream)) {
+					return false;
 				}
 				break;
 			}
@@ -282,6 +302,10 @@ const Method &HttpRequest::getMethod() const {
 	return _method;
 }
 
+const std::string &HttpRequest::getServerName() const {
+	return _serverName;
+}
+
 const std::string &HttpRequest::getPath() const {
 	return _path;
 }
@@ -295,17 +319,14 @@ const std::string &HttpRequest::getFragment() const {
 }
 
 const std::string &HttpRequest::getHeader(const std::string &key) const {
-	return _headers.at(key); // TODO: possibly change this to find and return empty string if not found.
+	auto it = _headers.find(key);
+	if (it != _headers.end()) {
+		return it->second;
+	} else {
+		static const std::string emptyString;
+		return emptyString;
+	}
 }
-// const std::string &HttpRequest::getHeader(const std::string &key) const {
-// 	auto it = _headers.find(key);
-// 	if (it != _headers.end()) {
-// 		return it->second;
-// 	} else {
-// 		static const std::string emptyString;
-// 		return emptyString;
-// 	}
-// }
 
 std::unordered_map<std::string, std::string> HttpRequest::getHeaders() const {
 	return _headers;
@@ -313,6 +334,10 @@ std::unordered_map<std::string, std::string> HttpRequest::getHeaders() const {
 
 const std::string &HttpRequest::getBody() const {
 	return _body;
+}
+
+const std::string &HttpRequest::getBoundary() const {
+	return _boundary;
 }
 
 HttpStatusCodes HttpRequest::errorCode() const {
@@ -341,6 +366,7 @@ void HttpRequest::reset() {
 	_state = Start;
 	_method = Method::UNKNOWN;
 	_errorCode = HttpStatusCodes::NONE;
+	_serverName.clear();
 	_path.clear();
 	_query.clear();
 	_fragment.clear();
@@ -350,4 +376,5 @@ void HttpRequest::reset() {
 	_chunkSize = 0;
 	_headers.clear();
 	_body.clear();
+	_boundary.clear();
 }

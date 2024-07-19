@@ -19,40 +19,47 @@ void ServerManager::setupServers()
 void ServerManager::startServers() {
 	std::vector<struct epoll_event> events;
 	while (true) {
-		events.clear();
-		events = EpollManager::getInstance().waitForEvents();
-		for (const auto &event : events) {
-			_handleEvent(event);
+		waitForAndHandleEvents(events);
+	}
+}
+
+void ServerManager::waitForAndHandleEvents(std::vector<struct epoll_event>& events) {
+	events.clear();
+	events = EpollManager::getInstance().waitForEvents();
+	for (const auto &event : events) {
+		handleEvent(event);
+	}
+}
+
+void ServerManager::handleEvent(const struct epoll_event &event) {
+	if (isReadableEvent(event)) {
+		if (tryHandlingServerEvent(event)) return;
+		delegateToResponsibleServer(event);
+	}
+}
+
+bool ServerManager::isReadableEvent(const struct epoll_event &event) {
+	return event.events & EPOLLIN;
+}
+
+bool ServerManager::tryHandlingServerEvent(const struct epoll_event &event) {
+	// Check if it's an existing server/connection
+	return ServerSocketEvent(event.data.fd);
+}
+
+void ServerManager::delegateToResponsibleServer(const struct epoll_event &event) {
+	// Delegate to the server that handles this client
+	for (auto &server : _servers) {
+		if (server->handlesClient(event.data.fd)) {
+			server->handleRequest(event.data.fd);
+			break;
 		}
 	}
 }
 
-// handles the events from epoll and redirects them to the correct server
-void ServerManager::_handleEvent(const struct epoll_event &event) {
-	if (event.events & EPOLLIN) {
-		// check if its a existing server
-		if (_checkServer(event.data.fd)) {
-			return;
-		}
-
-		// If it's a client socket, find the server that handles this client
-		// and let it handle the request
-		for (auto &server : _servers) {
-			if (server->handlesClient(event.data.fd)) {
-				server->handleRequest(event.data.fd);
-				break;
-			}
-		}
-	}
-}
-
-// loop over servers chek if its exisiting server if yes accept connection else return false
-bool ServerManager::_checkServer(const int &fd)
-{
-	for(auto &server : _servers)
-	{
-		if(fd == server->getListenFd())
-		{
+bool ServerManager::ServerSocketEvent(const int &fd) {
+	for(auto &server : _servers) {
+		if(fd == server->getListenFd()) {
 			server->acceptNewConnection();
 			return true;
 		}

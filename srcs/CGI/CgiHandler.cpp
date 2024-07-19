@@ -118,7 +118,7 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 	_env["REQUEST_URI"] = req.getPath() + (req.getQuery().empty() ? "" : "?" + req.getQuery());
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
 	_env["REDIRECT_STATUS"] = "200";
-	_env["SERVER_SOFTWARE"] = "AMANIX";
+	_env["SERVER_SOFTWARE"] = "CRATIX";
 }
 
 void CgiHandler::execute(HttpStatusCodes &error_code) {

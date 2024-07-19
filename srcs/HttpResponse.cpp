@@ -1,9 +1,9 @@
 #include "HttpResponse.hpp"
 
-HttpResponse::HttpResponse(Server &server) : _server(server) {
+HttpResponse::HttpResponse(Server &server) : _server(server), _targetFile(""), _location(""), _cgi(false), _autoindex(false) {
 }
 
-HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request) {
+HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request), _targetFile(""), _location(""), _cgi(false), _autoindex(false) {
 	request.print();
 }
 
@@ -14,7 +14,7 @@ void HttpResponse::setRequest(HttpRequest &request) {
 	_request = request;
 }
 
-void HttpResponse::setHeaders() {
+void HttpResponse::setHeaders() { // temp
 	DEBUG_PRINT("File is = " << _request.getPath());
 
 	// Get file path and extract extension
@@ -30,6 +30,7 @@ void HttpResponse::setHeaders() {
 	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
 }
 
+// first funtion to work on this is the heart of response.
 void HttpResponse::buildResponse() {
 	if (buildBody()) {
 		setStatus();

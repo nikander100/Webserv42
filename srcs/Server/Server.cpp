@@ -489,7 +489,7 @@ bool Server::handlesClient(const int &client_fd) {
 void Server::acceptNewConnection() {
 	try {
 		// Accept a new client connection and create a Client
-		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept());
+		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept(), *this);
 
 		// Get the client's file descriptor before moving the client
 		int ClientFd = newClient->getFd();

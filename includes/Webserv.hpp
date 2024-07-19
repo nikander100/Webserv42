@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <fstream>
 #include <filesystem>
+#include <memory>
+#include <optional> //unused for now
 
 
 /* STL Containers */
@@ -33,6 +35,7 @@
 # include <sys/wait.h>
 # include <sys/stat.h>
 # include <sys/time.h>
+# include <chrono>
 
 
 // Custom Defines
