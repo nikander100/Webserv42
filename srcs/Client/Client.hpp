@@ -41,8 +41,8 @@ class Client {
 		void updateTime();
 	
 	private:
-		Server &_server;
 		std::unique_ptr<ClientSocket> _socket;
+		Server &_server;
 		HttpRequest _request;
 		HttpResponse _response;
 

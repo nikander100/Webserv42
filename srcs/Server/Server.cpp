@@ -2,7 +2,7 @@
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoindex(false) {
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false) {
 }
 
 Server::~Server() {
@@ -136,11 +136,11 @@ void Server::setAutoIndex(std::string& autoindex) {
 		throw std::runtime_error("Wrong syntax: autoindex must be either 'on' or 'off'");
 	}
 
-	_autoindex = (autoindex == "on") ? true : false;
+	_autoIndex = (autoindex == "on") ? true : false;
 }
 
 std::string Server::getAutoIndex() const {
-	return _autoindex ? "on" : "off";
+	return _autoIndex ? "on" : "off";
 }
 
 int Server::getListenFd() const {

@@ -30,14 +30,6 @@ void HttpResponse::setHeaders() { // temp
 	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
 }
 
-// first funtion to work on this is the heart of response.
-void HttpResponse::buildResponse() {
-	if (buildBody()) {
-		setStatus();
-		setHeaders();
-	}
-	// Temp for testing only
-}
 
 std::string HttpResponse::getHeader() {
 	return _responseHeader;
@@ -101,4 +93,30 @@ HttpStatusCodes HttpResponse::getErrorCode() const
 {
 	return _request.errorCode(); // TODO REMOVE THIS, THIS TS TEMP
 	return _errorCode;
+}
+
+bool HttpResponse::requestIsSuccessful() {
+	_errorCode = _request.errorCode();
+	return _errorCode == HttpStatusCodes::NONE;
+}
+
+// first funtion to work on this is the heart of response.
+void HttpResponse::buildResponse() {
+
+	if (requestIsSuccessful() ||buildBody()) {
+		// buildErrorBody()
+	}
+	if (_cgi) {
+		return;
+	}
+	else if (_autoIndex) {
+		// build autoindex body
+		// if fail set errorcode 500 and build errorbody
+		//else  set code 200 and set/insert autoindex to responsebody.
+	}
+	setStatus();
+	setHeaders();
+	if (_request.getMethod() != Method::HEAD && (_request.getMethod() == Method::GET || _errorCode != HttpStatusCodes::OK)) {
+		//_responseContent.append(_response_body);
+	}
 }

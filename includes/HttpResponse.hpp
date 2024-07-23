@@ -61,9 +61,10 @@ class HttpResponse
 		bool _cgi;
 		Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
-		bool _autoindex;
+		bool _autoIndex;
 
 		bool buildBody();
+		bool requestIsSuccessful();
 		void setStatus();
 		void setHeaders();
 		//seterrorpage TODO implement server ref in thi sclass to access the errorpages.
