@@ -33,6 +33,8 @@ class Location {
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
 
+		bool isCgiPath() const;
+
 
 
 

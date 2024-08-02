@@ -5,6 +5,9 @@
 #include "HttpStatusCodes.hpp"
 #include "MimeTypes.hpp"
 #include "Pipe.hpp"
+#include "CgiHandler.hpp"
+#include "Location.hpp"
+#include "Server.hpp"
 
 /* 
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
@@ -27,7 +30,6 @@ class HttpResponse
 
 		void buildResponse();
 		void reset();
-		// void handleCgi();
 		// void cutResponse();
 		// int getCgistate();
 		// void setCgistate(int state);
@@ -35,7 +37,7 @@ class HttpResponse
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
-		// CgiHander cgi_obj;
+		CgiHandler cgiHandler;
 
 		// std::string removeBoundary(std::string &body, std::string &boundary);
 		// std::string responseContent;
@@ -45,13 +47,12 @@ class HttpResponse
 		HttpRequest _request;
 
 		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>
-		// std::map<std::string, std::string> _requset_heaeders;
 
 		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
 		size_t _responseBodyLength;
 
 		std::string _responseHeader;
-		HttpStatusCodes _errorCode;
+		HttpStatusCodes _statusCode;
 
 		// void tokenize(std::string&, std::string&, std::string del = "\n");
 
@@ -68,7 +69,7 @@ class HttpResponse
 		void setStatus();
 		void setHeaders();
 		//seterrorpage TODO implement server ref in thi sclass to access the errorpages.
-		void readFile();
+		bool readFile();
 		void appendContentTypeHeader();
 		void appendContentLengthHeader();
 		void appendConnectionTypeHeader();
@@ -76,7 +77,10 @@ class HttpResponse
 		void appendLocationHeader(); // redirectheader.
 		void appendDateHeader();
 
-		void handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
-		void handleCgi();
-		void handleCgiTemp(); // to be renamed
+		bool handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
+		bool handleCgi(Location &location);
+		bool handleCgiTemp(Location &location); // to be renamed
+
+		std::string getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations); // toberanmed
+		std::string combinePaths(const std::string &path1, const std::string &path2, const std::string &path3 = "");
 };

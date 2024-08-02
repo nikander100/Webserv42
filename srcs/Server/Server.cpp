@@ -317,7 +317,7 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 				}
 			}
 		} else {
-			throw std::runtime_error("Parametr in a location is invalid");
+			throw std::runtime_error("Parameter in a location is invalid");
 		}
 	}
 

@@ -32,7 +32,7 @@ class HttpRequest
 
 		const std::string &getServerName() const;
 		const Method &getMethod() const;
-		const std::string &getPath() const;
+		std::string &getPath();
 		std::string &getQuery();
 		const std::string &getFragment() const;
 		const std::string &getHeader(const std::string &key) const;
@@ -43,7 +43,7 @@ class HttpRequest
 	private:
 		State _state;
 		Method _method;
-		HttpStatusCodes _errorCode;
+		HttpStatusCodes _statusCode;
 
 		std::string _serverName;
 		std::string _path;
@@ -65,6 +65,4 @@ class HttpRequest
 		bool handleHeaders(std::istream &stream);
 		// void parseBodyData(const std::string &data, size_t &pos);
 		bool parseChunkSize(const std::string &line);
-
-		// void handleHeaders();
 };
