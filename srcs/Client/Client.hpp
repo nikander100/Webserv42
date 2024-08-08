@@ -39,12 +39,12 @@ class Client {
 		void clearClient();
 		const time_t &getLastRequestTime() const; // name getlasttime? and move to std::chrono::system_clock::time_point
 		void updateTime();
+		HttpResponse response;
 	
 	private:
 		std::unique_ptr<ClientSocket> _socket;
 		Server &_server;
 		HttpRequest _request;
-		HttpResponse _response;
 
 		time_t _lastRequestTime; // move to std::chrono::system_clock::time_point
 };

@@ -25,21 +25,20 @@ class HttpResponse
 		void setServer(Server &server); // possibly redundant.
 
 		std::string getResponse();
-		size_t getBodyLength();
+		size_t getResponseLength();
 		HttpStatusCodes getErrorCode() const;
 
 		void buildResponse();
 		void reset();
-		// void cutResponse();
-		// int getCgistate();
-		// void setCgistate(int state);
+		void cutResponse(size_t size);
+		int getCgistate();
+		void setCgistate(int state);
 		// void setResponse(HttpStatusCodes code);
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
 		CgiHandler cgiHandler;
 
-		// std::string removeBoundary(std::string &body, std::string &boundary);
 		// std::string responseContent;
 
 	private:
@@ -49,7 +48,8 @@ class HttpResponse
 		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>
 
 		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
-		size_t _responseBodyLength;
+		std::vector<uint8_t> _responseBody;
+		std::vector<uint8_t> _autoIndexBody;
 
 		std::string _responseHeader;
 		HttpStatusCodes _statusCode;
@@ -59,16 +59,18 @@ class HttpResponse
 		// new code refactor to dynamic response:
 		std::string _targetFile;
 		std::string _location;
-		bool _cgi;
+		int _cgi;
 		Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
 		bool _autoIndex;
 
 		bool buildBody();
+		void buildErrorBody();
+		bool buildAutoIndexBody();
+		void setErrorResponse(HttpStatusCodes code);
 		bool requestIsSuccessful();
 		void setStatus();
 		void setHeaders();
-		//seterrorpage TODO implement server ref in thi sclass to access the errorpages.
 		bool readFile();
 		void appendContentTypeHeader();
 		void appendContentLengthHeader();
@@ -83,4 +85,5 @@ class HttpResponse
 
 		std::string getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations); // toberanmed
 		std::string combinePaths(const std::string &path1, const std::string &path2, const std::string &path3 = "");
+		std::string removeBoundary(std::string &body, const std::string &boundary);
 };

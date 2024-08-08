@@ -207,7 +207,9 @@ const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() 
 std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 	// Check if a custom error page has been set for this status code
 	if (_errorPages.count(key) > 0) {
-		return {false, _errorPages.at(key)};
+		if (!_errorPages.at(key).empty()) {
+			return {false, _errorPages.at(key)};
+		}
 	}
 
 	// If not, check if the status code has an internal page in BuiltinErrorPages.hpp
@@ -547,7 +549,7 @@ void Server::handleRequest(const int &client_fd) {
 			throw std::runtime_error("Error generating response.");
 			return;
 		}
-		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
+		responseContent.append(responseGenerator.getResponse(), responseGenerator.getResponseLength());
 
 		// Send response to client
 		client.send(responseContent);
@@ -579,3 +581,5 @@ void Server::handleRequest(const int &client_fd) {
 ** -----------------------------------------------
 */
 }
+
+// TODO handle cgi read and write for request and response.

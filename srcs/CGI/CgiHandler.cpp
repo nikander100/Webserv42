@@ -174,7 +174,26 @@ void CgiHandler::execute(HttpStatusCodes &error_code) {
 		// If execve returns, there was an error
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "execve failed");
 		exit(EXIT_FAILURE);
-	} else if (_cgiPid > 0) {
+	} else if (_cgiPid > 0) { // It would be better practice to read the pipe out right before sending the data to the client.
+		pipeIn.closeRead();
+		pipeOut.closeWrite();
+
+		// Read cgi output
+		std::string cgiOutput;
+		char buffer[4096];
+		ssize_t bytesRead;
+		while ((bytesRead = read(pipeOut.read_fd, buffer, sizeof(buffer))) > 0) {
+			cgiOutput.append(buffer, bytesRead);
+		}
+
+		// close the pipe
+		pipeOut.closeWrite();
+		pipeIn.closeRead();
+
+		// Store for later use.
+		cgiOutput = cgiOutput;
+
+		// Logger::logMsg(DEBUG, CONSOLE_OUTPUT, "Child process created with pid: %d", _cgiPid);
 	} else {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
 		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;

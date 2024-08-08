@@ -13,6 +13,8 @@ class CgiHandler
 		Pipe pipeIn;
 		Pipe pipeOut;
 
+		std::string cgiOutput;
+
 		CgiHandler();
 		CgiHandler(std::string path);
 		virtual ~CgiHandler();

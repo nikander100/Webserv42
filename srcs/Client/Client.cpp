@@ -1,7 +1,7 @@
 #include "Client.hpp"
 
 Client::Client(std::unique_ptr<ClientSocket> socket, Server &server)
-	: _socket(std::move(socket)), _server(server), _request(), _response(server) {
+	: _socket(std::move(socket)), _server(server), _request(), response(server) {
 }
 
 Client::~Client() {

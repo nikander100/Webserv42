@@ -1,10 +1,10 @@
 #include "HttpResponse.hpp"
 // #include "Server.hpp"
 
-HttpResponse::HttpResponse(Server &server) : _server(server), _targetFile(""), _location(""), _cgi(false), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server) : _server(server), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 }
 
-HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request), _targetFile(""), _location(""), _cgi(false), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 	request.print();
 }
 
@@ -15,8 +15,15 @@ void HttpResponse::setRequest(HttpRequest &request) {
 	_request = request;
 }
 
-void HttpResponse::setHeaders() { // temp
-	DEBUG_PRINT("File is = " << _request.getPath());
+int HttpResponse::getCgistate() {
+	return _cgi;
+}
+
+void HttpResponse::setCgistate(int state) {
+	_cgi = state;
+}
+
+void HttpResponse::appendContentTypeHeader() {
 
 	// Get file path and extract extension
 	std::string path = _request.getPath();
@@ -25,12 +32,60 @@ void HttpResponse::setHeaders() { // temp
 	// Determine MIME type
 	std::string mimeType = getMimeTypeFromExtension(extension);
 
-	// Add necessary headers to the response header
 	_responseHeader.append("Content-Type: " + mimeType + "\r\n");
-	_responseHeader.append("Content-Length: " + std::to_string(_responseBodyLength) + "\r\n");
-	_responseHeader.append("\r\n"); // append an extra CRLF to separate headers from body
 }
 
+void HttpResponse::appendContentLengthHeader() {
+	_responseHeader.append("Content-Length: " + std::to_string(getResponseLength()) + "\r\n");
+}
+
+void HttpResponse::appendConnectionTypeHeader() {
+	if (_request.getHeader("connection") == "keep-alive") {
+		_responseHeader.append("Connection: keep-alive\r\n");
+	}
+}
+
+void HttpResponse::appendServerHeader() {
+	_responseHeader.append("Server: CRATIX\r\n");
+}
+
+void HttpResponse::appendLocationHeader() {
+	if (!_location.empty()) {
+		_responseHeader.append("Location: " + _location + "\r\n");
+	}
+}
+
+void HttpResponse::appendDateHeader() {
+	// Get the current time
+	time_t rawtime;
+	struct tm *timeinfo;
+	char buffer[80];
+
+	time(&rawtime);
+	timeinfo = localtime(&rawtime);
+
+	// Format the time
+	strftime(buffer, sizeof(buffer), "%a, %d %b %Y %H:%M:%S %Z", timeinfo);
+
+	_responseHeader.append("Date: " + std::string(buffer) + "\r\n");
+}
+
+
+void HttpResponse::setHeaders() {
+	// Add necessary headers to the response header
+	appendContentTypeHeader();
+	appendContentLengthHeader();
+	appendConnectionTypeHeader();
+	appendServerHeader();
+	appendLocationHeader();
+	appendDateHeader();
+
+	// Add a blank line to separate the headers from the body
+	_responseHeader.append("\r\n");
+
+	// Add the headers to the response content
+	_responseContent.insert(_responseContent.end(), _responseHeader.begin(), _responseHeader.end());
+}
 
 std::string HttpResponse::getHeader() {
 	return _responseHeader;
@@ -40,13 +95,14 @@ const char *HttpResponse::getBody() {
 	return reinterpret_cast<char*>(_responseContent.data());
 }
 
-size_t HttpResponse::getBodyLength() {
-	return std::max(_responseBodyLength, _responseContent.size());
+size_t HttpResponse::getResponseLength() {
+	return _responseContent.size();
 }
 
+// TODO de moeder make statuscode ns
 void HttpResponse::setStatus() {
-	// For testing Assume no errors for now.
-	_responseHeader.append("HTTP/1.1 200 OK\n");
+	_responseHeader.append("HTTP/1.1 " + std::to_string(static_cast<int>(_statusCode)) + " ");
+	// _responseHeader.append(getStatusMessage(_statusCode) + "\r\n");
 }
 
 std::string HttpResponse::getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations) {
@@ -100,7 +156,7 @@ bool HttpResponse::handleCgiTemp(Location &location) {
 	std::string path = _targetFile;
 	cgiHandler.reset();
 	cgiHandler.setCgiPath(path);
-	_cgi = true;
+	_cgi = 1;
 	cgiHandler.initEnv(_request, location);
 	cgiHandler.execute(_statusCode);
 	if (_statusCode == HttpStatusCodes::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
@@ -153,7 +209,7 @@ bool HttpResponse::handleCgi(Location &location) {
 
 	cgiHandler.reset();
 	cgiHandler.setCgiPath(path);
-	_cgi = true;
+	_cgi = 1;
 	cgiHandler.initEnv(_request, location);
 	cgiHandler.execute(_statusCode);
 	if (_statusCode == HttpStatusCodes::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
@@ -301,6 +357,54 @@ bool HttpResponse::handleTarget() {
 	return true;
 }
 
+std::string HttpResponse::removeBoundary(std::string &body, const std::string &boundary) {
+	std::string buffer;
+	std::string new_body;
+	std::string filename;
+	bool is_boundary = false;
+	bool is_content = false;
+
+	if (body.find("--" + boundary) != std::string::npos && body.find("--" + boundary + "--") != std::string::npos) {
+		for (size_t i = 0; i < body.size(); i++) {
+			buffer.clear();
+			while (i < body.size() && body[i] != '\n') {
+				buffer += body[i];
+				i++;
+			}
+			if (!buffer.compare("--" + boundary + "--\r")) {
+				is_content = true;
+				is_boundary = false;
+			}
+			if (!buffer.compare("--" + boundary + "\r")) {
+				is_boundary = true;
+			}
+			if (is_boundary) {
+				if (!buffer.compare(0, 31, "Content-Disposition: form-data;")) {
+					size_t start = buffer.find("filename=\"");
+					if (start != std::string::npos) {
+						size_t end = buffer.find("\"", start + 10);
+						if (end != std::string::npos)
+							filename = buffer.substr(start + 10, end - (start + 10));
+					}
+				} else if (!buffer.compare(0, 1, "\r") && !filename.empty()) {
+					is_boundary = false;
+					is_content = true;
+				}
+			} else if (is_content) {
+				if (!buffer.compare("--" + boundary + "\r")) {
+					is_boundary = true;
+				} else if (!buffer.compare("--" + boundary + "--\r")) {
+					new_body.erase(new_body.end() - 1);
+					break;
+				} else {
+					new_body += (buffer + "\n");
+				}
+			}
+		}
+	}
+	return new_body;
+}
+
 bool HttpResponse::buildBody() {
 	if (_request.getBody().length() > std::stoul(_server.getClientMaxBodySize())) {
 		_statusCode = HttpStatusCodes::PAYLOAD_TOO_LARGE;
@@ -336,14 +440,13 @@ bool HttpResponse::buildBody() {
 			return false;
 		}
 
-		// TODO //TODO hier de moeder
 		if (!_request.getBoundary().empty()) {
 			std::string tempBody = _request.getBody();
-			//tempBody = removeBoundary(tempBody, request.getBoundary());
-			//file.write(body.c_str(), body.length());
+			tempBody = removeBoundary(tempBody, _request.getBoundary());
+			fout.write(tempBody.c_str(), tempBody.length());
 		}
 		else{
-			//file.write(request.getBody().c_str(), request.getBody().length());
+			fout.write(_request.getBody().c_str(), _request.getBody().length());
 		}
 
 	}
@@ -369,12 +472,12 @@ bool HttpResponse::readFile() { // TODO remove debug
 		return false;
 	}
 
-	_responseBodyLength = static_cast<size_t>(fin.tellg());
+	size_t responseBodyLength = static_cast<size_t>(fin.tellg());
 	fin.seekg(0, std::ios::beg);
 
-	_responseContent.resize(_responseBodyLength);
+	_responseBody.resize(responseBodyLength);
 	
-	if (!fin.read(reinterpret_cast<char*>(_responseContent.data()), _responseBodyLength)) {
+	if (!fin.read(reinterpret_cast<char*>(_responseBody.data()), responseBodyLength)) {
 		_statusCode = HttpStatusCodes::INTERNAL_SERVER_ERROR;
 		return false;
 	}
@@ -382,14 +485,14 @@ bool HttpResponse::readFile() { // TODO remove debug
 	/* DEBUG START */
 	if (_targetFile.substr(_targetFile.find_last_of(".")) == ".html") {
 		std::cout << YELLOW << "Response body:" << RESET << std::endl;
-		for (char c : _responseContent) {
+		for (char c : _responseBody) {
 			std::cout << c;
 		}
 		std::cout << RESET << std::endl;
 		std::cout << RESET << std::endl;
 	}
 	else {
-		DEBUG_PRINT("Image size: " << _responseContent.size() << " bytes");
+		DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
 	}
 	/* DEBUG END */
 	return true;
@@ -404,24 +507,81 @@ bool HttpResponse::requestIsSuccessful() {
 	return _statusCode == HttpStatusCodes::NONE;
 }
 
+void HttpResponse::buildErrorBody() {
+	std::pair<bool, std::string> errorPageResult = _server.getErrorPage(_statusCode);
+
+	if (errorPageResult.first) { //builtin
+		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
+	}
+	else { // custom
+		if (_statusCode >= HttpStatusCodes::BAD_REQUEST && _statusCode < HttpStatusCodes::INTERNAL_SERVER_ERROR) {
+			_location = errorPageResult.second;
+			if (!_location.starts_with("/")) {
+				_location.insert(_location.begin(), '/');
+			}
+			_statusCode = HttpStatusCodes::FOUND;
+		}
+
+		_targetFile = combinePaths(_server.getRoot(), _location);
+		HttpStatusCodes oldCode = _statusCode;
+		if (!readFile()) {
+			_statusCode = oldCode;
+			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
+		}
+	}
+}
+
+void HttpResponse::setErrorResponse(HttpStatusCodes code) {
+	_responseContent.clear();
+	_responseBody.clear();
+	_statusCode = code;
+	buildErrorBody();
+	setStatus();
+	setHeaders();
+	_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
+}
+
 // first funtion to work on this is the heart of response.
 void HttpResponse::buildResponse() {
 
 	// if true handle error
 	if (!requestIsSuccessful() || !buildBody()) {
-		// buildErrorBody()
+		buildErrorBody();
 	}
-	if (_cgi) {
+	if (_cgi) { // TODO possibly handle cgi body here?
 		return;
 	}
-	else if (_autoIndex) {
-		// build autoindex body
-		// if fail set errorcode 500 and build errorbody
-		//else  set code 200 and set/insert autoindex to responsebody.
+	else if (_autoIndex) { // TODO de moeder maak autoindex
+		if (!buildAutoIndexBody()) {
+			_statusCode = HttpStatusCodes::INTERNAL_SERVER_ERROR;
+			buildErrorBody();
+		} 
+		else {
+			_statusCode = HttpStatusCodes::OK;
+		}
+		_responseBody.insert(_responseBody.end(), _autoIndexBody.begin(), _autoIndexBody.end());
 	}
+
 	setStatus();
 	setHeaders();
+
 	if (_request.getMethod() != Method::HEAD && (_request.getMethod() == Method::GET || _statusCode != HttpStatusCodes::OK)) {
-		//_responseContent.append(_response_body);
+		_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 	}
+}
+
+void HttpResponse::reset() {
+	_responseContent.clear();
+	_responseBody.clear();
+	_responseHeader.clear();
+	_autoIndexBody.clear();
+	_statusCode = HttpStatusCodes::NONE;
+	_targetFile.clear();
+	_location.clear();
+	_cgi = 0;
+	_autoIndex = false;
+}
+
+void HttpResponse::cutResponse(size_t size) {
+	_responseContent.resize(size);
 }
