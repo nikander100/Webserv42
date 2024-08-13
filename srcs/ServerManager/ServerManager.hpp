@@ -36,6 +36,7 @@ private:
 	// void _acceptNewConnection(Server &);
 	// void _handleRequest(const int &fd);
 	void waitForAndHandleEvents(std::vector<struct epoll_event>& events);
+	void checkClientTimeouts();
 	void handleEvent(const struct epoll_event &event);
 	bool isReadableEvent(const struct epoll_event &event);
 	bool tryHandlingServerEvent(const struct epoll_event &event);

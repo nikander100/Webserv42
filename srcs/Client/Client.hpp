@@ -20,7 +20,7 @@ class Client {
 		struct sockaddr_in getAddress() const;
 
 		// socket function wrappers
-		void send(const std::string &data);
+		void send();
 		void recv();
 		void close();
 
@@ -33,11 +33,12 @@ class Client {
 		bool keepAlive() const;
 
 		// response wrapper funcs
+		void generateResponse();
 		void clearResponse();
 
 		// general funcs
-		void clearClient();
-		const time_t &getLastRequestTime() const; // name getlasttime? and move to std::chrono::system_clock::time_point
+		void clear();
+		const std::chrono::steady_clock::time_point &getLastRequestTime() const;
 		void updateTime();
 		HttpResponse response;
 	
@@ -45,6 +46,5 @@ class Client {
 		std::unique_ptr<ClientSocket> _socket;
 		Server &_server;
 		HttpRequest _request;
-
-		time_t _lastRequestTime; // move to std::chrono::system_clock::time_point
+		std::chrono::steady_clock::time_point _lastRequestTime;
 };

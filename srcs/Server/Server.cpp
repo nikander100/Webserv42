@@ -508,7 +508,7 @@ void Server::acceptNewConnection() {
 }
 
 // returns a reference to the client object with the given fd.
-Client &Server::_getClient(const int &client_fd) {
+Client &Server::getClient(const int &client_fd) {
 	for (auto &client : _clients) {
 		if (client->getFd() == client_fd) {
 			return *client;
@@ -517,7 +517,7 @@ Client &Server::_getClient(const int &client_fd) {
 	throw std::runtime_error("Client not found");
 }
 
-void Server::_removeClient(int client_fd) {
+void Server::removeClient(int client_fd) {
 	_clients.erase(
 		std::remove_if(
 			_clients.begin(), _clients.end(),
@@ -528,11 +528,9 @@ void Server::_removeClient(int client_fd) {
 	);
 }
 
+
 void Server::handleRequest(const int &client_fd) {
-	// Handle requests from clients
-	HttpResponse responseGenerator(*this);
-	std::string responseContent;
-	Client& client = _getClient(client_fd);
+	Client& client = getClient(client_fd);
 
 	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
 
@@ -540,19 +538,21 @@ void Server::handleRequest(const int &client_fd) {
 		// Read data from client socket
 		client.recv();
 
-		// Process request and generate response
-		responseGenerator.setRequest(client.getRequest()); //rename to repsonse?
-		responseGenerator.buildResponse();
-		responseContent = responseGenerator.getHeader();
-		if (responseContent.empty()) { // TODO temp check to be changed
+		// process request and generate response
+		client.generateResponse();
+
+		if (client.response.getResponse().empty()) { // TODO temp check to be changed
 			std::cerr << "Error generating response." << std::endl;
 			throw std::runtime_error("Error generating response.");
 			return;
 		}
-		responseContent.append(responseGenerator.getResponse(), responseGenerator.getResponseLength());
 
-		// Send response to client
-		client.send(responseContent);
+		// TODO de moeder hier do estuf fmet cgi?
+		// Send response to client 
+		client.send();
+
+		// clean up request and response objects
+		client.clear();
 	} 
 	catch (const std::runtime_error& e) {
 		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
@@ -567,12 +567,35 @@ void Server::handleRequest(const int &client_fd) {
 		client.close();
 
 		// Remove client from list(vector) of clients
-		_removeClient(client_fd);
+		removeClient(client_fd);
 	} else {
 		// Clear the request object for the next request
-		client.clearRequest();
+		client.clear();
 	}
 	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.
+}
+
+void Server::checkClientTimeouts() {
+	// Get the current time using a steady clock to ensure consistent time intervals
+	auto now = std::chrono::steady_clock::now();
+
+	// Iterate through the list of clients
+	for (auto it = _clients.begin(); it != _clients.end(); ) {
+		// Dereference the unique pointer to access the client object
+		auto &client = **it;
+
+		// Check if the time elapsed since the client's last request is greater than the timeout value
+		auto lastRequestTime = client.getLastRequestTime();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
+
+		if (duration > CONNECTION_TIMEOUT) {
+			it = _clients.erase(it);
+		} else {
+			// If the client has not timed out, move to the next client
+			++it;
+		}
+	}
+}
 
 /*
 ** -----------------------------------------------

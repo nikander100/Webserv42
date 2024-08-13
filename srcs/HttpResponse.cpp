@@ -541,6 +541,88 @@ void HttpResponse::setErrorResponse(HttpStatusCodes code) {
 	_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 }
 
+bool HttpResponse::buildAutoIndexBody() {
+	struct dirent *entityStruct;
+	DIR *directory;
+	std::string dirListPage;
+	
+	// Open the directory
+	directory = opendir(_targetFile.c_str());
+	if (directory == NULL) {
+		std::cerr << "opendir failed for " << _targetFile << std::endl;
+		return false;
+	}
+
+	// Start building the HTML page
+	dirListPage.append("<html>\n");
+	dirListPage.append("<head>\n");
+	dirListPage.append("<title>Index of " + _targetFile + "</title>\n");
+	dirListPage.append("</head>\n");
+	dirListPage.append("<body>\n");
+	dirListPage.append("<h1>Index of " + _targetFile + "</h1>\n");
+	dirListPage.append("<table style=\"width:80%; font-size: 15px\">\n");
+	dirListPage.append("<hr>\n");
+	dirListPage.append("<th style=\"text-align:left\">File Name</th>\n");
+	dirListPage.append("<th style=\"text-align:left\">Last Modification</th>\n");
+	dirListPage.append("<th style=\"text-align:left\">File Size</th>\n");
+
+	struct stat file_stat;
+	std::string file_path;
+
+	// Iterate over each entity in the directory
+	while((entityStruct = readdir(directory)) != NULL) {
+		if (strcmp(entityStruct->d_name, ".") == 0) {
+			continue;
+		}
+
+		// Get file path and stats
+		file_path = _targetFile + entityStruct->d_name;
+		if (stat(file_path.c_str(), &file_stat) == -1) {
+			std::cerr << "stat failed for " << file_path << std::endl;
+			continue;
+		}
+
+		// Build the table row for each file or directory
+		dirListPage.append("<tr>\n");
+		dirListPage.append("<td><a href=\"" + std::string(entityStruct->d_name));
+
+		if (S_ISDIR(file_stat.st_mode)) {
+			dirListPage.append("/");
+		}
+
+		dirListPage.append("\">" + std::string(entityStruct->d_name));
+
+		if (S_ISDIR(file_stat.st_mode)) {
+			dirListPage.append("/");
+		}
+
+		dirListPage.append("</a></td>\n");
+		dirListPage.append("<td>" + std::string(ctime(&file_stat.st_mtime)) + "</td>\n");
+		dirListPage.append("<td>");
+
+		if (!S_ISDIR(file_stat.st_mode)) {
+			dirListPage.append(std::to_string(file_stat.st_size));
+		}
+
+		dirListPage.append("</td>\n");
+		dirListPage.append("</tr>\n");
+	}
+
+	// Finish the HTML page
+	dirListPage.append("</table>\n");
+	dirListPage.append("<hr>\n");
+	dirListPage.append("</body>\n");
+	dirListPage.append("</html>\n");
+
+	// Close the directory
+	closedir(directory);
+
+	// Insert the HTML content into the response body
+	_autoIndexBody.assign(dirListPage.begin(), dirListPage.end());
+
+	return true;
+}
+
 // first funtion to work on this is the heart of response.
 void HttpResponse::buildResponse() {
 

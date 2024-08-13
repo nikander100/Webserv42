@@ -16,8 +16,9 @@ struct sockaddr_in Client::getAddress() const {
 	return _socket->getAddress();
 }
 
-void Client::send(const std::string &data) {
-	_socket->send(data);
+void Client::send() {
+	_socket->send(response.getResponse());
+	updateTime();
 }
 
 void Client::recv() {
@@ -26,6 +27,8 @@ void Client::recv() {
 		throw std::runtime_error("Client disconnected");
 	}
 	feed(data);
+
+
 }
 
 void Client::close() {
@@ -54,4 +57,26 @@ void Client::clearRequest() {
 
 bool Client::keepAlive() const {
 	return _request.keepAlive();
+}
+
+void Client::generateResponse() {
+	response.setRequest(_request);
+	response.buildResponse();
+}
+
+void Client::clearResponse() {
+	response.reset();
+}
+
+void Client::clear() {
+	clearRequest();
+	clearResponse();
+}
+
+void Client::updateTime() {
+	_lastRequestTime = std::chrono::system_clock::now();
+}
+
+const std::chrono::system_clock::time_point &Client::getLastRequestTime() const {
+	return _lastRequestTime;
 }

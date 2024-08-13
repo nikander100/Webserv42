@@ -12,6 +12,7 @@
 #include <filesystem>
 #include <memory>
 #include <optional> //unused for now
+#include <dirent.h>
 
 
 /* STL Containers */

@@ -29,6 +29,13 @@ void ServerManager::waitForAndHandleEvents(std::vector<struct epoll_event>& even
 	for (const auto &event : events) {
 		handleEvent(event);
 	}
+	checkClientTimeouts();
+}
+
+void ServerManager::checkClientTimeouts() {
+	for (auto &server : _servers) {
+		server->checkClientTimeouts();
+	}
 }
 
 void ServerManager::handleEvent(const struct epoll_event &event) {
@@ -36,6 +43,9 @@ void ServerManager::handleEvent(const struct epoll_event &event) {
 		if (tryHandlingServerEvent(event)) return;
 		delegateToResponsibleServer(event);
 	}
+	//MOEDER
+	//isWritableEvent
+	//handleWritableEvent
 }
 
 bool ServerManager::isReadableEvent(const struct epoll_event &event) {

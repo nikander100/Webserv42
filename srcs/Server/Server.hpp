@@ -77,6 +77,7 @@ public:
 	bool handlesClient(const int &clientFd);
 	void acceptNewConnection();
 	void handleRequest(const int& clientFd);
+	void checkClientTimeouts();
 
 
 	class Error : public std::exception {
@@ -108,8 +109,8 @@ private:
 
 	//newcodesplitsbs
 	std::vector<std::unique_ptr<Client>> _clients;
-	Client &_getClient(const int &clientFd);
-	void _removeClient(int clientFd);
+	Client &getClient(const int &clientFd);
+	void removeClient(int clientFd);
 
 	//newcodelocation&errorpages
 	enum class CgiValidation {
