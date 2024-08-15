@@ -21,20 +21,29 @@ EpollManager &EpollManager::getInstance() {
 }
 
 void EpollManager::addToEpoll(int fd) {
-	struct epoll_event event;
+	struct epoll_event event = {};
 	event.data.fd = fd;
-	event.events = EPOLLIN | EPOLLET; // Monitor for incoming data
+	event.events = EPOLLIN | EPOLLOUT | EPOLLET; // Monitor for incoming & outgoing data
 
 	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
 		std::cerr << "Error adding fd/socket to epoll: " << strerror(errno) << std::endl;
-		exit(EXIT_FAILURE);
+		throw std::runtime_error("Failed to add fd to epoll");
+	}
+}
+
+void EpollManager::addCgiToEpoll(int fd, epoll_event &event) {
+	// event.events |=  EPOLLET; // Add edge-triggered behavior
+
+	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
+		std::cerr << "Error adding cgi fd/socket to epoll: " << strerror(errno) << std::endl;
+		throw std::runtime_error("Failed to add fd to epoll");
 	}
 }
 
 void EpollManager::removeFromEpoll(int fd) {
 	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr) == -1) {
 		std::cerr << "Error removing fd/socket from epoll: " << strerror(errno) << std::endl;
-		exit(EXIT_FAILURE);
+		throw std::runtime_error("Failed to remove fd from epoll");
 	}
 }
 
@@ -51,7 +60,6 @@ std::vector<struct epoll_event> EpollManager::waitForEvents() {
 		// Handle error
 		std::cerr << "Error in epoll_wait: " << strerror(errno) << std::endl;
 		throw std::runtime_error("epoll_wait failed");
-		exit(EXIT_FAILURE);
 	}
 
 	// Resize the vector to the actual number of events

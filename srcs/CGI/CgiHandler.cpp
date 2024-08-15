@@ -123,7 +123,7 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 
 //TODO make noneblcking MOEDER
 // TODO ask about the epollin and epollout cgi ahndling based on the client.cgi state.
-void CgiHandler::execute(HttpStatusCodes &error_code) {
+void CgiHandler::execute(HttpStatusCodes &error_code, int client_fd) {
 	if (!_cgiArgv[0] || !_cgiArgv[1]) {
 		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
 		return;
@@ -180,20 +180,21 @@ void CgiHandler::execute(HttpStatusCodes &error_code) {
 		pipeIn.closeRead();
 		pipeOut.closeWrite();
 
-		// Read cgi output
-		std::string cgiOutput;
-		char buffer[4096];
-		ssize_t bytesRead;
-		while ((bytesRead = read(pipeOut.read_fd, buffer, sizeof(buffer))) > 0) {
-			cgiOutput.append(buffer, bytesRead);
-		}
+		// create struct to pass to epoll
+		CgiEventData *CgiEventDataOut = new CgiEventData{client_fd, pipeOut.read_fd, true};
+		CgiEventData *CgiEventDataIn = new CgiEventData{client_fd, pipeIn.write_fd, false};
 
-		// close the pipe
-		pipeOut.closeWrite();
-		pipeIn.closeRead();
+		struct epoll_event event;
 
-		// Store for later use.
-		cgiOutput = cgiOutput;
+		// Register pipeOut.read_fd to epoll
+		event.events = EPOLLIN;
+		event.data.ptr = CgiEventDataOut;
+		EpollManager::getInstance().addCgiToEpoll(pipeOut.read_fd, event);
+
+		// Register pipeIn.write_fd to epoll
+		event.events = EPOLLOUT;
+		event.data.ptr = CgiEventDataIn;
+		EpollManager::getInstance().addCgiToEpoll(pipeIn.write_fd, event);
 
 		// Logger::logMsg(DEBUG, CONSOLE_OUTPUT, "Child process created with pid: %d", _cgiPid);
 	} else {

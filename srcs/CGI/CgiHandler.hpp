@@ -6,6 +6,7 @@
 #include "Pipe.hpp"
 #include "Location.hpp"
 #include "HttpStatusCodes.hpp"
+#include "EpollManager.hpp"
 
 class CgiHandler
 {
@@ -13,15 +14,13 @@ class CgiHandler
 		Pipe pipeIn;
 		Pipe pipeOut;
 
-		std::string cgiOutput;
-
 		CgiHandler();
 		CgiHandler(std::string path);
 		virtual ~CgiHandler();
 
 		void initEnv(HttpRequest& req, const Location &location);
 		void initEnvCgi(HttpRequest& req, const Location &location);
-		void execute(HttpStatusCodes &error_code);
+		void execute(HttpStatusCodes &error_code, int client_fd);
 		void reset();
 		std::string setCookie(const std::string cookie_str); //omNomNom.
 

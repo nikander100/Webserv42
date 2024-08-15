@@ -1,14 +1,15 @@
 #pragma once
 #include "Webserv.hpp"
 
-#include "HttpResponse.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
-#include "Client.hpp"
 #include "Location.hpp"
+
 
 #include "Method.hpp"
 
+class Client;
+class HttpResponse;
 class Server {
 public:
 	Server(void);
@@ -79,6 +80,9 @@ public:
 	void handleRequest(const int& clientFd);
 	void checkClientTimeouts();
 
+	//cgi?
+	void handleCgiOutput(const int &clientFd, CgiEventData *cgiData);
+	void handleCgiInput(const int &clientFd, CgiEventData *cgiData);
 
 	class Error : public std::exception {
 		public:

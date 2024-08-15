@@ -41,7 +41,7 @@
 
 // Custom Defines
 
-constexpr size_t CONNECTION_TIMEOUT = 60; // 1 minute.
+constexpr int64_t CONNECTION_TIMEOUT = 60; // 1 minute.
 
 // constexpr size_t MAX_CONTENT_SIZE = 33554432; // 32MB
 constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
@@ -63,3 +63,10 @@ std::vector<std::string>	readfile(char **argv); //TODO needs own class
 
 //part of validation
 bool checkbalance(std::vector<std::string> conf); //TODO needs own class
+
+// cgi struct
+struct CgiEventData {
+	int clientFd;
+	int pipeFd;
+	bool isPipeOut; // True if pipe_out (for reading CGI output), false if pipe_in (for writing CGI input)
+};

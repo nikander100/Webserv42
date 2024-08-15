@@ -1,10 +1,11 @@
 #include "Client.hpp"
 
 Client::Client(std::unique_ptr<ClientSocket> socket, Server &server)
-	: _socket(std::move(socket)), _server(server), _request(), response(server) {
+	: _socket(std::move(socket)), _server(server), _request() {
+		response = std::make_unique<HttpResponse>(server, _socket->getFd());
 }
 
-Client::~Client() {
+Client::~Client() { //TODO JE MOEDER handle delete cgihandler event data
 	_socket->close();
 }
 
@@ -17,16 +18,23 @@ struct sockaddr_in Client::getAddress() const {
 }
 
 void Client::send() {
-	_socket->send(response.getResponse());
+	_socket->send(response->getResponse());
 	updateTime();
 }
 
 void Client::recv() {
-	std::string data = _socket->recv();
-	if (data.empty()) {
-		throw std::runtime_error("Client disconnected");
+	try {
+		std::string data = _socket->recv();
+		if (data.empty()) {
+			throw std::runtime_error("Client disconnected");
+		}
+
+		feed(data);
+	} catch(const std::exception& e) {
+		EpollManager::getInstance().removeFromEpoll(_socket->getFd());
+		std::cerr << e.what() << '\n';
 	}
-	feed(data);
+	
 
 
 }
@@ -60,12 +68,12 @@ bool Client::keepAlive() const {
 }
 
 void Client::generateResponse() {
-	response.setRequest(_request);
-	response.buildResponse();
+	response->setRequest(_request);
+	response->buildResponse();
 }
 
 void Client::clearResponse() {
-	response.reset();
+	response->reset();
 }
 
 void Client::clear() {
@@ -74,9 +82,9 @@ void Client::clear() {
 }
 
 void Client::updateTime() {
-	_lastRequestTime = std::chrono::system_clock::now();
+	_lastRequestTime = std::chrono::_V2::steady_clock::now();
 }
 
-const std::chrono::system_clock::time_point &Client::getLastRequestTime() const {
+const std::chrono::_V2::steady_clock::time_point &Client::getLastRequestTime() const {
 	return _lastRequestTime;
 }

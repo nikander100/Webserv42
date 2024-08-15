@@ -9,7 +9,7 @@
 #include "Location.hpp"
 #include "Server.hpp"
 
-/* 
+/* , response(server, _socket->getFd()) 
 	Takes a string object that contain the whole request message and parse it into 3 Variables 
 	_request_line, _request_headers, _request_body. And build the response message.
 */
@@ -17,8 +17,8 @@ class Server;
 class HttpResponse
 {
 	public:
-		HttpResponse(Server &server);
-		HttpResponse(Server &server, HttpRequest &request);
+		HttpResponse(Server &server, int clientFd);
+		HttpResponse(Server &server, HttpRequest &request, int clientFd);
 		~HttpResponse();
 
 		void setRequest(HttpRequest &request);
@@ -37,12 +37,13 @@ class HttpResponse
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
-		CgiHandler cgiHandler;
+		// CgiHandler cgiHandler;
 
 		// std::string responseContent;
 
 	private:
 		Server &_server;
+		int _clientFd;
 		HttpRequest _request;
 
 		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>

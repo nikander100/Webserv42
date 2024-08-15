@@ -1,4 +1,6 @@
 #include "Server.hpp"
+#include "Client.hpp"
+#include "HttpResponse.hpp"
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
@@ -496,6 +498,9 @@ void Server::acceptNewConnection() {
 		// Get the client's file descriptor before moving the client
 		int ClientFd = newClient->getFd();
 
+		// update the last request time
+		newClient->updateTime();
+
 		// Add the new client to the list of clients
 		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr));
 		_clients.push_back(std::move(newClient));
@@ -528,7 +533,7 @@ void Server::removeClient(int client_fd) {
 	);
 }
 
-
+// TODO make read and write request...
 void Server::handleRequest(const int &client_fd) {
 	Client& client = getClient(client_fd);
 
@@ -541,16 +546,19 @@ void Server::handleRequest(const int &client_fd) {
 		// process request and generate response
 		client.generateResponse();
 
-		if (client.response.getResponse().empty()) { // TODO temp check to be changed
+		if (client.response->getResponse().empty()) { // TODO temp check to be changed
 			std::cerr << "Error generating response." << std::endl;
 			throw std::runtime_error("Error generating response.");
 			return;
 		}
 
 		// TODO de moeder hier do estuf fmet cgi?
+		// HIER check cgi state and handle accordingly.??
 		// Send response to client 
 		client.send();
 
+
+		// TODO only cleanup on send!?
 		// clean up request and response objects
 		client.clear();
 	} 
@@ -559,7 +567,7 @@ void Server::handleRequest(const int &client_fd) {
 	}
 
 	// Check if keep-alive is false before closing the connection
-	if (!client.keepAlive() || client.requestError() != HttpStatusCodes::NONE || responseGenerator.getErrorCode() != HttpStatusCodes::NONE){
+	if (!client.keepAlive() || client.requestError() != HttpStatusCodes::NONE){
 		// Remove clientFd from epoll
 		EpollManager::getInstance().removeFromEpoll(client_fd);
 
@@ -597,12 +605,55 @@ void Server::checkClientTimeouts() {
 	}
 }
 
+// cgi functions
+// handlecgi output.
+void Server::handleCgiOutput(const int &client_fd, CgiEventData *cgiData) {
+	// Client& client = getClient(client_fd);
+
+	// // Read data from the pipe
+	// std::string output = Pipe::read(cgiData->pipeOut.read_fd);
+
+	// // Append the output to the response body
+	// client.response.appendBody(output);
+
+	// // Check if the CGI process has finished
+	// if (cgiData->isFinished()) {
+	// 	// Close the pipe
+	// 	Pipe::close(cgiData->pipeOut);
+
+	// 	// Remove the CGI process from the epoll
+	// 	EpollManager::getInstance().removeFromEpoll(cgiData->pipeOut.read_fd);
+
+	// 	// Clean up the CGI data
+	// 	delete cgiData;
+	// }
+}
+
+// handlecgi input.
+void Server::handleCgiInput(const int &client_fd, CgiEventData *cgiData) {
+	// Client& client = getClient(client_fd);
+
+	// // Write data to the pipe
+	// Pipe::write(cgiData->pipeIn.write_fd, client.request.getBody());
+
+	// // Check if the request body has been fully written to the pipe
+	// if (client.request.getBody().empty()) {
+	// 	// Close the pipe
+	// 	Pipe::close(cgiData->pipeIn);
+
+	// 	// Remove the CGI process from the epoll
+	// 	EpollManager::getInstance().removeFromEpoll(cgiData->pipeIn.write_fd);
+	// }
+}
+
+
+
 /*
 ** -----------------------------------------------
 ** =					END OF					 =
 ** =			Server Logic Functions			 =
 ** -----------------------------------------------
 */
-}
+
 
 // TODO handle cgi read and write for request and response.

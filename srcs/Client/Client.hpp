@@ -3,10 +3,12 @@
 #include "Webserv.hpp"
 #include "ClientSocket.hpp"
 #include "HttpRequest.hpp"
-#include "HttpResponse.hpp"
 #include "HttpStatusCodes.hpp"
+#include "HttpResponse.hpp"
+#include "Server.hpp"
 
 class Server;
+
 class Client {
 	public:
 
@@ -40,7 +42,7 @@ class Client {
 		void clear();
 		const std::chrono::steady_clock::time_point &getLastRequestTime() const;
 		void updateTime();
-		HttpResponse response;
+		std::unique_ptr<HttpResponse> response;
 	
 	private:
 		std::unique_ptr<ClientSocket> _socket;

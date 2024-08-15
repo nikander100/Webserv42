@@ -1,10 +1,10 @@
 #include "HttpResponse.hpp"
-// #include "Server.hpp"
+#include "Server.hpp"
 
-HttpResponse::HttpResponse(Server &server) : _server(server), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server, int clientFd) : _server(server), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 }
 
-HttpResponse::HttpResponse(Server &server, HttpRequest &request) : _server(server), _request(request), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server, HttpRequest &request, int clientFd) : _server(server), _request(request), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 	request.print();
 }
 
@@ -154,11 +154,11 @@ std::string HttpResponse::combinePaths(const std::string &path1, const std::stri
 
 bool HttpResponse::handleCgiTemp(Location &location) {
 	std::string path = _targetFile;
-	cgiHandler.reset();
-	cgiHandler.setCgiPath(path);
+	// cgiHandler.reset();
+	// cgiHandler.setCgiPath(path);
 	_cgi = 1;
-	cgiHandler.initEnv(_request, location);
-	cgiHandler.execute(_statusCode);
+	// cgiHandler.initEnv(_request, location);
+	// cgiHandler.execute(_statusCode, _clientFd);
 	if (_statusCode == HttpStatusCodes::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
 		return false;
 	}
@@ -207,11 +207,11 @@ bool HttpResponse::handleCgi(Location &location) {
 		return false;
 	}
 
-	cgiHandler.reset();
-	cgiHandler.setCgiPath(path);
+	// cgiHandler.reset();
+	// cgiHandler.setCgiPath(path);
 	_cgi = 1;
-	cgiHandler.initEnv(_request, location);
-	cgiHandler.execute(_statusCode);
+	// cgiHandler.initEnv(_request, location);
+	// cgiHandler.execute(_statusCode, _clientFd);
 	if (_statusCode == HttpStatusCodes::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
 		return false;
 	}
@@ -630,10 +630,10 @@ void HttpResponse::buildResponse() {
 	if (!requestIsSuccessful() || !buildBody()) {
 		buildErrorBody();
 	}
-	if (_cgi) { // TODO possibly handle cgi body here?
+	if (_cgi) {
 		return;
 	}
-	else if (_autoIndex) { // TODO de moeder maak autoindex
+	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HttpStatusCodes::INTERNAL_SERVER_ERROR;
 			buildErrorBody();
@@ -666,4 +666,8 @@ void HttpResponse::reset() {
 
 void HttpResponse::cutResponse(size_t size) {
 	_responseContent.resize(size);
+}
+
+std::string HttpResponse::getResponse() {
+	return std::string(_responseContent.begin(), _responseContent.end());
 }

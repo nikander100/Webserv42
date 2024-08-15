@@ -41,5 +41,6 @@ private:
 	bool isReadableEvent(const struct epoll_event &event);
 	bool tryHandlingServerEvent(const struct epoll_event &event);
 	void delegateToResponsibleServer(const struct epoll_event &event);
+	void delegateCgiToResponsibleServer(const struct epoll_event &event, CgiEventData *cgi_data);
 	bool ServerSocketEvent(const int &fd);
 };

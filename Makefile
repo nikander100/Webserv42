@@ -25,7 +25,8 @@ INC_DIR := includes/
 INC_SUBDIRS := $(shell find $(SRCS_DIR) -type d)
 
 CXX := g++
-CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
+CXXCODAMFLAGS = -Wall -Werror -Wextra 
+CXXFLAGS := -std=c++20 -g -x c++ # $(CXXCODAMFLAGS)
 CPPFLAGS := -I$(INC_DIR) $(addprefix -I, $(INC_SUBDIRS))
 
 # gets all the .hpp files to check for changes and recompile affected files

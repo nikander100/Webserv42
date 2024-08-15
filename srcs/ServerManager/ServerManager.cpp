@@ -39,13 +39,21 @@ void ServerManager::checkClientTimeouts() {
 }
 
 void ServerManager::handleEvent(const struct epoll_event &event) {
+	CgiEventData* cgiData = static_cast<CgiEventData*>(event.data.ptr);
+
 	if (isReadableEvent(event)) {
-		if (tryHandlingServerEvent(event)) return;
-		delegateToResponsibleServer(event);
+			if (tryHandlingServerEvent(event)) return;
+			delegateToResponsibleServer(event);
 	}
-	//MOEDER
-	//isWritableEvent
-	//handleWritableEvent
+	// if (cgiData) { // Handle CGI events
+	// 	delegateCgiToResponsibleServer(event, cgiData);
+	// } else { // Handle server/client events
+	// 	if (isReadableEvent(event)) {
+	// 		if (tryHandlingServerEvent(event)) return;
+	// 		delegateToResponsibleServer(event);
+	// 	}
+
+	// }
 }
 
 bool ServerManager::isReadableEvent(const struct epoll_event &event) {
@@ -62,6 +70,22 @@ void ServerManager::delegateToResponsibleServer(const struct epoll_event &event)
 	for (auto &server : _servers) {
 		if (server->handlesClient(event.data.fd)) {
 			server->handleRequest(event.data.fd);
+			break;
+		}
+	}
+}
+
+void ServerManager::delegateCgiToResponsibleServer(const struct epoll_event &event, CgiEventData* cgi_data) {
+	// Delegate to the server that handles this client
+	for (auto &server : _servers) {
+		if (server->handlesClient(cgi_data->clientFd)) {
+			if (cgi_data->isPipeOut) {
+				// Handle CGI output (reading from CGI process)
+				server->handleCgiOutput(event.data.fd, cgi_data);
+			} else {
+				// Handle CGI input (writing to CGI process)
+				server->handleCgiInput(event.data.fd, cgi_data);
+			}
 			break;
 		}
 	}
