@@ -65,7 +65,7 @@ public:
 	// Accessors for the 'locations' member variable.
 	const std::unordered_map<std::string, Location> &getLocations(void);
 	const Location &getLocation(const std::string &path);
-	void setLocation(const std::string &path, std::vector<std::string> &location);
+	void setLocation(std::string &path, std::vector<std::string> &location);
 
 	// Accessors for the 'serverAddress' member variable.
 	const sockaddr_in getServerAddress() const;

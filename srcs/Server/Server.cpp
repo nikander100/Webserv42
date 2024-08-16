@@ -14,7 +14,7 @@ Server::~Server() {
 // Server Block: server { ... }
 // Takes a std::string from the parser should be:
 // [server_name localhost;]
-void Server::setServerName(std::string &server_name) {
+void Server::setServerName(std::string &server_name) { // todo possibly make only a-zA-Z0-9
 	checkInput(server_name);
 	_serverName = server_name;
 }
@@ -237,7 +237,7 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 
 // Location Block: location { ... }
 // Takes a std::String and Vector of strings std::vector<std::string> from the parser should be:
-// std:string path[/subfolder] std::vector<std::string> {
+// std:string [path /subfolder] std::vector<std::string> {
 // [root ./;]
 // [allow_methods GET POST DELETE;]
 // [autoindex off;]
@@ -248,13 +248,13 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 // [alias google.com/;]
 // [client_max_body_size 1024;]
 // }
-void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
+void Server::setLocation(std::string &path, std::vector<std::string> &parsedLocation) {
 	Location newLocation;
 	std::vector<Method> methods;
 	std::vector<std::pair<std::string, std::string>> cgiPathExtension;
 
 	std::regex rootRegex(R"(root\s(.+);)");
-	std::regex methodRegex(R"(allow_methods\s+((GET|POST|PUT|HEAD|DELETE)\s*)+;)");
+	std::regex methodRegex(R"(allow_methods\s+((?:GET|POST|PUT|HEAD|DELETE)(?:\s+(?:GET|POST|PUT|HEAD|DELETE))*);)"); // this works!
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
 	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
@@ -263,6 +263,7 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 	std::regex aliasRegex(R"(alias\s+(.+);)");
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
 
+	checkInput(path);
 	newLocation.setPath(path);
 	
 	for (const auto &line : parsedLocation) {
@@ -502,7 +503,7 @@ void Server::acceptNewConnection() {
 		newClient->updateTime();
 
 		// Add the new client to the list of clients
-		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr));
+		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr) << ":" << newClient->getFd());
 		_clients.push_back(std::move(newClient));
 
 		// Add client socket to epoll
@@ -537,7 +538,7 @@ void Server::removeClient(int client_fd) {
 void Server::handleRequest(const int &client_fd) {
 	Client& client = getClient(client_fd);
 
-	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
+	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd());
 
 	try {
 		// Read data from client socket
@@ -596,8 +597,11 @@ void Server::checkClientTimeouts() {
 		auto lastRequestTime = client.getLastRequestTime();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
 
+		DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
 		if (duration > CONNECTION_TIMEOUT) {
+			DEBUG_PRINT(MAGENTA, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
 			it = _clients.erase(it);
+
 		} else {
 			// If the client has not timed out, move to the next client
 			++it;

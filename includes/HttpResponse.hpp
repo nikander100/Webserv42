@@ -25,7 +25,7 @@ class HttpResponse
 		void setServer(Server &server); // possibly redundant.
 
 		std::string getResponse();
-		size_t getResponseLength();
+		size_t getResponseBodyLength();
 		HttpStatusCodes getErrorCode() const;
 
 		void buildResponse();

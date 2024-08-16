@@ -36,7 +36,7 @@ void HttpResponse::appendContentTypeHeader() {
 }
 
 void HttpResponse::appendContentLengthHeader() {
-	_responseHeader.append("Content-Length: " + std::to_string(getResponseLength()) + "\r\n");
+	_responseHeader.append("Content-Length: " + std::to_string(getResponseBodyLength()) + "\r\n");
 }
 
 void HttpResponse::appendConnectionTypeHeader() {
@@ -95,8 +95,8 @@ const char *HttpResponse::getBody() {
 	return reinterpret_cast<char*>(_responseContent.data());
 }
 
-size_t HttpResponse::getResponseLength() {
-	return _responseContent.size();
+size_t HttpResponse::getResponseBodyLength() {
+	return _responseBody.size();
 }
 
 // TODO de moeder make statuscode ns
@@ -406,7 +406,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 }
 
 bool HttpResponse::buildBody() {
-	if (_request.getBody().length() > std::stoul(_server.getClientMaxBodySize())) {
+	if (_request.getBody().length() > std::stoul(_server.getClientMaxBodySize())) { // TODO check this also for location?
 		_statusCode = HttpStatusCodes::PAYLOAD_TOO_LARGE;
 		return false;
 	}
