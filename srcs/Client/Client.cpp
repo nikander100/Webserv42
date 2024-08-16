@@ -5,7 +5,8 @@ Client::Client(std::unique_ptr<ClientSocket> socket, Server &server)
 		response = std::make_unique<HttpResponse>(server, _socket->getFd());
 }
 
-Client::~Client() { //TODO JE MOEDER handle delete cgihandler event data
+Client::~Client() { //TODO JE MOEDER handle delete cgihandler event data?
+	DEBUG_PRINT(RED, "Client destroyed: " << inet_ntoa(getAddress().sin_addr) << ":" << getFd());
 	_socket->close();
 }
 
@@ -20,6 +21,8 @@ struct sockaddr_in Client::getAddress() const {
 void Client::send() {
 	_socket->send(response->getResponse());
 	updateTime();
+	// clear(); // TODO maybe not needed only clear rersponse?
+	clearResponse();
 }
 
 void Client::recv() {
@@ -29,6 +32,7 @@ void Client::recv() {
 			throw std::runtime_error("Client disconnected");
 		}
 
+		clearRequest();
 		feed(data);
 	} catch(const std::exception& e) {
 		EpollManager::getInstance().removeFromEpoll(_socket->getFd());
@@ -40,6 +44,7 @@ void Client::recv() {
 }
 
 void Client::close() {
+	DEBUG_PRINT(RED, "Client closed: " << inet_ntoa(getAddress().sin_addr) << ":" << getFd());
 	_socket->close();
 }
 

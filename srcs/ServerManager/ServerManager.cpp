@@ -17,7 +17,7 @@ void ServerManager::setupServers()
 	testServer->setServerName(name);
 	std::string host = "127.0.0.1;";
 	testServer->setHost(host);
-	std::string root = "wwwroot/server_dir/;";
+	std::string root = "wwwroot/server_dir2/;";
 	testServer->setRoot(root);
 	std::string index = "index.html;";
 	testServer->setIndex(index); 
@@ -124,7 +124,10 @@ void ServerManager::delegateCgiToResponsibleServer(const struct epoll_event &eve
 bool ServerManager::ServerSocketEvent(const int &fd) {
 	for(auto &server : _servers) {
 		if(fd == server->getListenFd()) {
-			server->acceptNewConnection();
+			if (!server->handlesClient(fd)) {
+				server->acceptNewConnection();
+			}
+			// server->acceptNewConnection();
 			return true;
 		}
 	}

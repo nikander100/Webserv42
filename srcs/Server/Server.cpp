@@ -524,6 +524,7 @@ Client &Server::getClient(const int &client_fd) {
 }
 
 void Server::removeClient(int client_fd) {
+	DEBUG_PRINT(RED, "Client removed: " << client_fd);
 	_clients.erase(
 		std::remove_if(
 			_clients.begin(), _clients.end(),
@@ -561,7 +562,7 @@ void Server::handleRequest(const int &client_fd) {
 
 		// TODO only cleanup on send!?
 		// clean up request and response objects
-		client.clear();
+		// client.clear();
 	} 
 	catch (const std::runtime_error& e) {
 		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
