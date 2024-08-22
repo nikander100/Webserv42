@@ -1,6 +1,6 @@
 #include "ServerManager.hpp"
 
-ServerManager::ServerManager() {
+ServerManager::ServerManager(): _running(false) {
 }
 
 ServerManager::~ServerManager() {
@@ -46,18 +46,38 @@ void ServerManager::setupServers()
 	}
 }
 
-void ServerManager::startServers() {
-	std::vector<struct epoll_event> events;
-	while (true) {
-		waitForAndHandleEvents(events);
+void ServerManager::stop() {
+	if (_running) {
+		try {
+			_running = false;
+			for (auto &server : _servers) {
+				server->stop();
+			}
+		} catch (const std::exception &e) {
+		std::cerr << "Error stopping server: " << e.what() << std::endl;
+		}
+		EpollManager::getInstance().close();
 	}
 }
 
-void ServerManager::waitForAndHandleEvents(std::vector<struct epoll_event>& events) {
+void ServerManager::pause() {
+	_running = false;
+}
+
+void ServerManager::start() {
+	std::vector<struct epoll_event> events;
+	
+	_running = true;
+	while (_running) {
+		processEvents(events);
+	}
+}
+
+void ServerManager::processEvents(std::vector<struct epoll_event>& events) {
 	events.clear();
 	events = EpollManager::getInstance().waitForEvents();
-	for (const auto &event : events) {
-		handleEvent(event);
+	for (auto &event : events) {
+		assignToResponsibleServer(event);
 	}
 	checkClientTimeouts();
 }
@@ -68,68 +88,16 @@ void ServerManager::checkClientTimeouts() {
 	}
 }
 
-void ServerManager::handleEvent(const struct epoll_event &event) {
-	CgiEventData* cgiData = static_cast<CgiEventData*>(event.data.ptr);
-
-	if (isReadableEvent(event)) {
-			if (tryHandlingServerEvent(event)) return;
-			delegateToResponsibleServer(event);
-	}
-	// if (cgiData) { // Handle CGI events
-	// 	delegateCgiToResponsibleServer(event, cgiData);
-	// } else { // Handle server/client events
-	// 	if (isReadableEvent(event)) {
-	// 		if (tryHandlingServerEvent(event)) return;
-	// 		delegateToResponsibleServer(event);
-	// 	}
-
-	// }
-}
-
-bool ServerManager::isReadableEvent(const struct epoll_event &event) {
-	return event.events & EPOLLIN;
-}
-
-bool ServerManager::tryHandlingServerEvent(const struct epoll_event &event) {
-	// Check if it's an existing server/connection
-	return ServerSocketEvent(event.data.fd);
-}
-
-void ServerManager::delegateToResponsibleServer(const struct epoll_event &event) {
+void ServerManager::assignToResponsibleServer(struct epoll_event &event) {
 	// Delegate to the server that handles this client
 	for (auto &server : _servers) {
-		if (server->handlesClient(event.data.fd)) {
-			server->handleRequest(event.data.fd);
-			break;
+		if (event.data.fd == server->getListenFd()) {
+			server->acceptNewConnection();
+			return;
+		}
+		if (server->handlesClient(event)) {
+			server->handleEvent(event);
+			return;
 		}
 	}
-}
-
-void ServerManager::delegateCgiToResponsibleServer(const struct epoll_event &event, CgiEventData* cgi_data) {
-	// Delegate to the server that handles this client
-	for (auto &server : _servers) {
-		if (server->handlesClient(cgi_data->clientFd)) {
-			if (cgi_data->isPipeOut) {
-				// Handle CGI output (reading from CGI process)
-				server->handleCgiOutput(event.data.fd, cgi_data);
-			} else {
-				// Handle CGI input (writing to CGI process)
-				server->handleCgiInput(event.data.fd, cgi_data);
-			}
-			break;
-		}
-	}
-}
-
-bool ServerManager::ServerSocketEvent(const int &fd) {
-	for(auto &server : _servers) {
-		if(fd == server->getListenFd()) {
-			if (!server->handlesClient(fd)) {
-				server->acceptNewConnection();
-			}
-			// server->acceptNewConnection();
-			return true;
-		}
-	}
-	return false;
 }

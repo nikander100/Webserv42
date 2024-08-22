@@ -4,11 +4,11 @@
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false) {
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false), _stop(false) {
 }
 
 Server::~Server() {
-	_socket.close();
+	stop();
 }
 
 // Server Block: server { ... }
@@ -473,16 +473,26 @@ void Server::setupServer() {
 
 		_socket.initialize(AF_INET, SOCK_STREAM, 0, SOL_SOCKET, SO_REUSEADDR, SOMAXCONN, _host, _port);
 		// Add server socket to epoll
-		EpollManager::getInstance().addToEpoll(_socket.getFd());
+		EpollManager::getInstance().addToEpoll(_socket.getFd(), EPOLLIN);
 	} catch (const std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;
 		exit(EXIT_FAILURE);
 	}
 }
 
-bool Server::handlesClient(const int &client_fd) {
+void Server::stop() {
+	_stop = true;
 	for (auto &client : _clients) {
-			if (client->getFd() == client_fd) {
+		EpollManager::getInstance().removeFromEpoll(client->getFd());
+		client->close();
+	}
+	EpollManager::getInstance().removeFromEpoll(_socket.getFd());
+	_socket.close();
+}
+
+bool Server::handlesClient(struct epoll_event &event) {
+	for (auto &client : _clients) {
+			if (client->getFd() == event.data.fd) {
 				return true;
 			}
 		}
@@ -492,6 +502,9 @@ bool Server::handlesClient(const int &client_fd) {
 // creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
 
 void Server::acceptNewConnection() {
+	if (_stop) {
+		return;
+	}
 	try {
 		// Accept a new client connection and create a Client
 		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept(), *this);
@@ -507,7 +520,7 @@ void Server::acceptNewConnection() {
 		_clients.push_back(std::move(newClient));
 
 		// Add client socket to epoll
-		EpollManager::getInstance().addToEpoll(ClientFd);
+		EpollManager::getInstance().addToEpoll(ClientFd, EPOLLIN | EPOLLRDHUP);
 	} catch (const std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;
 	}
@@ -535,11 +548,69 @@ void Server::removeClient(int client_fd) {
 	);
 }
 
-// TODO make read and write request...
-void Server::handleRequest(const int &client_fd) {
-	Client& client = getClient(client_fd);
+void Server::handleEpollOut(struct epoll_event &event) {
+	try {
+		Client& client = getClient(event.data.fd);
+		client.generateResponse(); //TODO handle cgi state and handle accordingly.. and implement checks further.
 
-	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd());
+		client.send();
+
+		if (!client.keepAlive()) {
+			EpollManager::getInstance().removeFromEpoll(client.getFd());
+			client.close();
+			removeClient(client.getFd());
+		} else {
+			// client.clear();
+			// set event to epollin.
+			event.events = EPOLLIN;
+			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
+		}
+	} catch (const std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
+	}
+}
+
+void Server::handleEpollIn(struct epoll_event &event) {
+	try {
+		Client& client = getClient(event.data.fd);
+
+		client.recv();
+
+		if (client.requestState()) {
+			// TODO set epoll state correctly.
+			event.events = EPOLLOUT;
+			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
+		}
+	} catch (const std::runtime_error& e) {
+		std::cerr << e.what() << std::endl;
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
+	}
+}
+
+// TODO make read and write request...
+void Server::handleEvent(struct epoll_event &event) {
+	try {
+		if (event.events & EPOLLRDHUP) {
+			EpollManager::getInstance().removeFromEpoll(event.data.fd);
+			getClient(event.data.fd).close();
+			removeClient(event.data.fd);
+		} else if (event.events & EPOLLOUT){
+			handleEpollOut(event); // Handle Response.
+		} else if (event.events & EPOLLIN) {
+			handleEpollIn(event); // Handle Request.
+		} 
+	} catch (const std::runtime_error& e) {
+		// EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		// removeClient(event.data.fd);
+		std::cerr << e.what() << std::endl;
+	}
+/* 	Client& client = getClient(event.data.fd);
+	// TODO implement the read (EPOLLIN), write (EPOLLOUT) and EPOLLRDHUP (client closed connection) events
+	DEBUG_PRINT(MAGENTA, "Handling event from client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd());
+	DEBUG_PRINT(CYAN, "Event: " << event.events);
 
 	try {
 		// Read data from client socket
@@ -571,18 +642,18 @@ void Server::handleRequest(const int &client_fd) {
 	// Check if keep-alive is false before closing the connection
 	if (!client.keepAlive() || client.requestError() != HttpStatusCodes::NONE){
 		// Remove clientFd from epoll
-		EpollManager::getInstance().removeFromEpoll(client_fd);
+		EpollManager::getInstance().removeFromEpoll(client.getFd());
 
 		// Close connection
 		client.close();
 
 		// Remove client from list(vector) of clients
-		removeClient(client_fd);
+		removeClient(client.getFd());
 	} else {
 		// Clear the request object for the next request
 		client.clear();
 	}
-	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.
+	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll. */
 }
 
 void Server::checkClientTimeouts() {
@@ -609,49 +680,6 @@ void Server::checkClientTimeouts() {
 		}
 	}
 }
-
-// cgi functions
-// handlecgi output.
-void Server::handleCgiOutput(const int &client_fd, CgiEventData *cgiData) {
-	// Client& client = getClient(client_fd);
-
-	// // Read data from the pipe
-	// std::string output = Pipe::read(cgiData->pipeOut.read_fd);
-
-	// // Append the output to the response body
-	// client.response.appendBody(output);
-
-	// // Check if the CGI process has finished
-	// if (cgiData->isFinished()) {
-	// 	// Close the pipe
-	// 	Pipe::close(cgiData->pipeOut);
-
-	// 	// Remove the CGI process from the epoll
-	// 	EpollManager::getInstance().removeFromEpoll(cgiData->pipeOut.read_fd);
-
-	// 	// Clean up the CGI data
-	// 	delete cgiData;
-	// }
-}
-
-// handlecgi input.
-void Server::handleCgiInput(const int &client_fd, CgiEventData *cgiData) {
-	// Client& client = getClient(client_fd);
-
-	// // Write data to the pipe
-	// Pipe::write(cgiData->pipeIn.write_fd, client.request.getBody());
-
-	// // Check if the request body has been fully written to the pipe
-	// if (client.request.getBody().empty()) {
-	// 	// Close the pipe
-	// 	Pipe::close(cgiData->pipeIn);
-
-	// 	// Remove the CGI process from the epoll
-	// 	EpollManager::getInstance().removeFromEpoll(cgiData->pipeIn.write_fd);
-	// }
-}
-
-
 
 /*
 ** -----------------------------------------------

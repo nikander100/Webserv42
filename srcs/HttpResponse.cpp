@@ -157,7 +157,7 @@ bool HttpResponse::handleCgiTemp(Location &location) {
 	// cgiHandler.reset();
 	// cgiHandler.setCgiPath(path);
 	_cgi = 1;
-	// cgiHandler.initEnv(_request, location);
+	// cgiHandler.initEnvCgi(_request, location);
 	// cgiHandler.execute(_statusCode, _clientFd);
 	if (_statusCode == HttpStatusCodes::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
 		return false;

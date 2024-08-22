@@ -71,18 +71,16 @@ public:
 	const sockaddr_in getServerAddress() const;
 	// void setServerAddress(struct sockaddr_in serveraddress); possibly not needed.
 
-
-	void run();
 	//splitservernewfunc
 	void setupServer();
-	bool handlesClient(const int &clientFd);
+	bool handlesClient(struct epoll_event &event);
 	void acceptNewConnection();
-	void handleRequest(const int& clientFd);
+	void handleEvent(struct epoll_event &event);
+	void handleEpollOut(struct epoll_event &event);
+	void handleEpollIn(struct epoll_event &event);
 	void checkClientTimeouts();
 
-	//cgi?
-	void handleCgiOutput(const int &clientFd, CgiEventData *cgiData);
-	void handleCgiInput(const int &clientFd, CgiEventData *cgiData);
+	void stop();
 
 	class Error : public std::exception {
 		public:
@@ -110,6 +108,7 @@ private:
 	ServerSocket _socket; // TODO make this a unique_ptr
 
 	static void checkInput(std::string &inputcheck);
+	bool _stop;
 
 	//newcodesplitsbs
 	std::vector<std::unique_ptr<Client>> _clients;

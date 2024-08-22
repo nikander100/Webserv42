@@ -7,10 +7,11 @@ public:
 
 	EpollManager(EpollManager const&) = delete; // Don't allow copying
 	void operator=(EpollManager const&) = delete; // Don't allow assignment
+	void close();
 
-	void addToEpoll(int fd);
-	void addCgiToEpoll(int fd, epoll_event &event);
+	void addToEpoll(int fd, uint32_t mask);
 	void removeFromEpoll(int fd);
+	void modifyEpoll(int fd, struct epoll_event &event);
 	std::vector<struct epoll_event> waitForEvents();
 
 private:

@@ -1,9 +1,9 @@
 #include "CgiHandler.hpp"
 
-CgiHandler::CgiHandler() : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath("") {
+CgiHandler::CgiHandler() : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath(""), state(0) {
 }
 
-CgiHandler::CgiHandler(std::string path) : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath(path) {
+CgiHandler::CgiHandler(std::string path) : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath(path), state(0) {
 }
 
 CgiHandler::~CgiHandler() { // todo possibly use free instead.
@@ -36,12 +36,12 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 	// Construct the CGI executable path
 	std::string cgiExec = "cgi-bin/" + location.getCgiPathExtension().front().first;
 
-	char* cwd = getcwd(nullptr, 0);
+	char *cwd = getcwd(nullptr, 0);
 	if (!_cgiPath.starts_with('/')) {
 		std::string tmp(cwd);
-		tmp.append(cwd);
 		if (!_cgiPath.empty()) {
-			_cgiPath.insert(0, tmp);
+			tmp.append("/").append(_cgiPath);
+			_cgiPath = tmp;
 		}
 	}
 	free(cwd);
@@ -74,6 +74,7 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 	}
 
 	// Allocate and populate the _cgiEnvp array
+	_cgiEnvp.clear();
 	for (const auto& [key, value] : _env) {
 		std::string tmp = key + "=" + value;
 		_cgiEnvp.push_back(std::make_unique<char[]>(tmp.length() + 1));
@@ -81,6 +82,7 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 	}
 
 	// Allocate and populate the _cgiArgv array
+	_cgiArgv.clear();
 	_cgiArgv.push_back(std::make_unique<char[]>(cgiExec.length() + 1));
 	std::strcpy(_cgiArgv[0].get(), cgiExec.c_str());
 
@@ -123,21 +125,21 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 
 //TODO make noneblcking MOEDER
 // TODO ask about the epollin and epollout cgi ahndling based on the client.cgi state.
-void CgiHandler::execute(HttpStatusCodes &error_code, int client_fd) {
+void CgiHandler::execute(HttpStatusCodes &error_code) {
 	if (!_cgiArgv[0] || !_cgiArgv[1]) {
 		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
 		return;
 	}
 
-	if (!pipeIn.createPipe()) {
-		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "pipe_in creation failed");
-		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
-		return;
-	}
+	char buffer[100000];
+	int stdinCopy;
+	FILE *inputStream = tmpfile(); // should use mkstemp but this is for ease.
+	int fdin = fileno(inputStream);
+	stdinCopy = dup(STDIN_FILENO);
+
 
 	if (!pipeOut.createPipe()) {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "pipe_in creation failed");
-		pipeIn.closePipe();
 		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
 		return;
 	}
@@ -158,48 +160,48 @@ void CgiHandler::execute(HttpStatusCodes &error_code, int client_fd) {
 
 	_cgiPid = fork();
 	if (_cgiPid == 0) { // Child process
-
-		pipeIn.closeWrite();
-		pipeOut.closeRead();
-
-		if (dup2(pipeIn.read_fd, STDIN_FILENO) < 0 ||
-			dup2(pipeOut.write_fd, STDOUT_FILENO) < 0) {
-			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "dup2 failed");
-			exit(EXIT_FAILURE);
+		if(dup2(pipeOut.write_fd, STDOUT_FILENO) == -1) {
+			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "dup2 failed somehting is majorly wrong with your system, i'd suggest you to seek help from a professional");
+			std::exit(EXIT_FAILURE);
 		}
 
-		pipeIn.closeRead();		// pipeIn.closePipe();
-		pipeOut.closeWrite();	//pipeOut.closePipe();
+		pipeOut.closeRead();
 
+		if (dup2(fdin, STDIN_FILENO) == -1) {
+			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "dup2 failed somehting is majorly wrong with your system, i'd suggest you to seek help from a professional");
+			std::exit(EXIT_FAILURE);
+		}
 
-		execve(_cgiArgv[0].get(), argv_temp.data(), envp_temp.data());
-		// If execve returns, there was an error
-		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "execve failed");
-		exit(EXIT_FAILURE);
-	} else if (_cgiPid > 0) { // It would be better practice to read the pipe out right before sending the data to the client.
-		pipeIn.closeRead();
-		pipeOut.closeWrite();
-
-		// create struct to pass to epoll
-		CgiEventData *CgiEventDataOut = new CgiEventData{client_fd, pipeOut.read_fd, true};
-		CgiEventData *CgiEventDataIn = new CgiEventData{client_fd, pipeIn.write_fd, false};
-
-		struct epoll_event event;
-
-		// Register pipeOut.read_fd to epoll
-		event.events = EPOLLIN;
-		event.data.ptr = CgiEventDataOut;
-		EpollManager::getInstance().addCgiToEpoll(pipeOut.read_fd, event);
-
-		// Register pipeIn.write_fd to epoll
-		event.events = EPOLLOUT;
-		event.data.ptr = CgiEventDataIn;
-		EpollManager::getInstance().addCgiToEpoll(pipeIn.write_fd, event);
-
-		// Logger::logMsg(DEBUG, CONSOLE_OUTPUT, "Child process created with pid: %d", _cgiPid);
-	} else {
+		if (execve(_cgiArgv[0].get(), argv_temp.data(), envp_temp.data()) == -1) {
+			fclose(inputStream);
+			close(fdin);
+			close(stdinCopy);
+			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "execve failed");
+			kill(getpid(), SIGTERM);
+		}
+		// If execve returns, there was an error, also how did you even manage to get here?!?
+		std::exit(EXIT_FAILURE);
+	} else if (_cgiPid < 0) {
+		state = 2;
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
 		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
+	} else {
+		waitpid(_cgiPid, NULL, -1);
+		pipeOut.closeWrite();
+		_cgiOutput.clear();
+
+		while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
+			_cgiOutput += static_cast<std::ostringstream &>((std::ostringstream() << std::dec << buffer)).str();
+			memset(buffer, 0, sizeof(buffer));
+		}
+
+		pipeOut.closePipe();
+		state = 2;
+		memset(buffer, 0, sizeof(buffer));
+		dup2(STDIN_FILENO, stdinCopy);
+		fclose(inputStream);
+		close(stdinCopy);
+		close(fdin);
 	}
 }
 
@@ -249,6 +251,12 @@ void CgiHandler::reset() {
 	_cgiPath.clear();
 	_cgiEnvp.clear();
 	_cgiArgv.clear();
+	_cgiOutput.clear();
+	state = 0;
+}
+
+std::string CgiHandler::getCgiOutput() const {
+	return _cgiOutput;
 }
 
 // Private functions

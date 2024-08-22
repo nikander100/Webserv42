@@ -2,10 +2,24 @@
 #include "ServerManager.hpp"
 #include "Parse.hpp"
 
+ServerManager testing;
+
+void handleSignal(int signal) {
+	(void)signal;
+	testing.stop();
+}
+
+void handleSIGTERM(int signal) {
+	(void)signal;
+	testing.pause();
+}
+
 int	main(int ac, char **av) {
 	if (ac == 2) {
 		try {
-			(void)av;
+			if (ac == 1) {
+				av[1] = NULL;
+			}
 			Parse parser;
 			// parser.readfile(av);
 			// parser.printRawConf();
@@ -18,14 +32,19 @@ int	main(int ac, char **av) {
 			//parser.setup(conf);
 			//manager.create(parser.servers)
 			//manager.statr();
+
+
+			// Signal handling
+			std::signal(SIGINT, handleSignal);
+			std::signal(SIGTERM, handleSIGTERM);
+			std::signal(SIGQUIT, handleSignal);
+
+			testing.setupServers();
+			testing.start();
 		}
 		catch (std::exception &e) {
 			std::cerr << e.what() << std::endl;
-			return 1;
 		}
-		ServerManager testing;
-		testing.setupServers();
-		testing.startServers();
 		return 0;
 	}
 	//somelogger

@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional> //unused for now
 #include <dirent.h>
+#include <csignal>
 
 
 /* STL Containers */
@@ -63,10 +64,3 @@ std::vector<std::string>	readfile(char **argv); //TODO needs own class
 
 //part of validation
 bool checkbalance(std::vector<std::string> conf); //TODO needs own class
-
-// cgi struct
-struct CgiEventData {
-	int clientFd;
-	int pipeFd;
-	bool isPipeOut; // True if pipe_out (for reading CGI output), false if pipe_in (for writing CGI input)
-};
