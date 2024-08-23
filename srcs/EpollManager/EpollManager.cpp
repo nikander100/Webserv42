@@ -36,14 +36,14 @@ void EpollManager::addToEpoll(int fd, uint32_t mask) {
 }
 
 void EpollManager::removeFromEpoll(int fd) {
-	// epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr);
+	epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr);
 }
 
 void EpollManager::modifyEpoll(int fd, struct epoll_event &event) {
 	epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event);
 }
 
-std::vector<struct epoll_event> EpollManager::waitForEvents() {
+std::vector<struct epoll_event> EpollManager::waitForEvents(int timeout) {
 	// Define the maximum number of events to be returned by a single epoll_wait call
 	const int MAX_EVENTS = 10;
 
@@ -51,7 +51,7 @@ std::vector<struct epoll_event> EpollManager::waitForEvents() {
 	std::vector<struct epoll_event> events(MAX_EVENTS);
 
 	// Wait for events on the epoll file descriptor
-	int numEvents = epoll_wait(_epollFd, events.data(), MAX_EVENTS, -1);
+	int numEvents = epoll_wait(_epollFd, events.data(), MAX_EVENTS, timeout);
 	if (numEvents == -1) {
 		// Handle error
 		std::cerr << "Error in epoll_wait: " << strerror(errno) << std::endl;

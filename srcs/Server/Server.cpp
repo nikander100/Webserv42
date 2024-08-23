@@ -1,6 +1,6 @@
 #include "Server.hpp"
 #include "Client.hpp"
-#include "HttpResponse.hpp"
+#include "Response.hpp"
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
@@ -169,14 +169,14 @@ void Server::setErrorPages(const std::vector<std::string> &error_pages) {
 		if (error_keyword != "error_page") {
 			throw Error("Invalid keyword in error page: " + page);
 		}
-		HttpStatusCodes code = static_cast<HttpStatusCodes>(std::stoi(status_code));
+		HTTP::StatusCode::Code code = static_cast<HTTP::StatusCode::Code>(std::stoi(status_code));
 		setErrorPage(code, path);
 	}
 }
 
 // set a specific error page
-void Server::setErrorPage(HttpStatusCodes key, std::string path) {
-	if (key < HttpStatusCodes::CONTINUE || key > HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
+void Server::setErrorPage(HTTP::StatusCode::Code key, std::string path) {
+	if (key < HTTP::StatusCode::Code::CONTINUE || key > HTTP::StatusCode::Code::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
 
@@ -194,7 +194,7 @@ void Server::setErrorPage(HttpStatusCodes key, std::string path) {
 
 }
 
-const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() const {
+const std::unordered_map<HTTP::StatusCode::Code, std::string> &Server::getErrorPages() const {
 	return _errorPages;
 }
 
@@ -206,7 +206,7 @@ const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() 
 //     // Handle custom page
 // }
 // returns either the path to the custom error page or the default internal error page
-std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
+std::pair<bool, std::string> Server::getErrorPage(HTTP::StatusCode::Code key) {
 	// Check if a custom error page has been set for this status code
 	if (_errorPages.count(key) > 0) {
 		if (!_errorPages.at(key).empty()) {
@@ -215,8 +215,8 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 	}
 
 	// If not, check if the status code has an internal page in BuiltinErrorPages.hpp
-	if (BuiltinErrorPages::isInternalPage(key)) {
-		return {true, BuiltinErrorPages::getInternalPage(key)};
+	if (HTTP::BuiltinErrorPages::isInternalPage(key)) {
+		return {true, HTTP::BuiltinErrorPages::getInternalPage(key)};
 	}
 	
 	throw std::invalid_argument("Error page not found for status code: " + std::to_string(static_cast<int>(key)));
@@ -520,7 +520,7 @@ void Server::acceptNewConnection() {
 		_clients.push_back(std::move(newClient));
 
 		// Add client socket to epoll
-		EpollManager::getInstance().addToEpoll(ClientFd, EPOLLIN | EPOLLRDHUP);
+		EpollManager::getInstance().addToEpoll(ClientFd, EPOLLIN | EPOLLRDHUP); //| EPOLLET
 	} catch (const std::runtime_error& e) {
 		std::cerr << e.what() << std::endl;
 	}
@@ -584,7 +584,7 @@ void Server::handleEpollIn(struct epoll_event &event) {
 			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, e.what());
 		EpollManager::getInstance().removeFromEpoll(event.data.fd);
 		removeClient(event.data.fd);
 	}
@@ -607,53 +607,6 @@ void Server::handleEvent(struct epoll_event &event) {
 		// removeClient(event.data.fd);
 		std::cerr << e.what() << std::endl;
 	}
-/* 	Client& client = getClient(event.data.fd);
-	// TODO implement the read (EPOLLIN), write (EPOLLOUT) and EPOLLRDHUP (client closed connection) events
-	DEBUG_PRINT(MAGENTA, "Handling event from client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd());
-	DEBUG_PRINT(CYAN, "Event: " << event.events);
-
-	try {
-		// Read data from client socket
-		client.recv();
-
-		// process request and generate response
-		client.generateResponse();
-
-		if (client.response->getResponse().empty()) { // TODO temp check to be changed
-			std::cerr << "Error generating response." << std::endl;
-			throw std::runtime_error("Error generating response.");
-			return;
-		}
-
-		// TODO de moeder hier do estuf fmet cgi?
-		// HIER check cgi state and handle accordingly.??
-		// Send response to client 
-		client.send();
-
-
-		// TODO only cleanup on send!?
-		// clean up request and response objects
-		// client.clear();
-	} 
-	catch (const std::runtime_error& e) {
-		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
-	}
-
-	// Check if keep-alive is false before closing the connection
-	if (!client.keepAlive() || client.requestError() != HttpStatusCodes::NONE){
-		// Remove clientFd from epoll
-		EpollManager::getInstance().removeFromEpoll(client.getFd());
-
-		// Close connection
-		client.close();
-
-		// Remove client from list(vector) of clients
-		removeClient(client.getFd());
-	} else {
-		// Clear the request object for the next request
-		client.clear();
-	}
-	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll. */
 }
 
 void Server::checkClientTimeouts() {
@@ -671,7 +624,7 @@ void Server::checkClientTimeouts() {
 
 		DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
 		if (duration > CONNECTION_TIMEOUT) {
-			DEBUG_PRINT(MAGENTA, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
+			DEBUG_PRINT(BLUE, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
 			it = _clients.erase(it);
 
 		} else {

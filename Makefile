@@ -10,11 +10,10 @@ SRCS := Socket/Socket.cpp \
 		Parser/Parse.cpp \
 		EpollManager/EpollManager.cpp \
 		ServerManager/ServerManager.cpp \
-		HttpResponse.cpp \
-		HttpRequest.cpp \
 		main.cpp \
-		utils.cpp \
 		Location/Location.cpp \
+		HTTP/Request.cpp \
+		HTTP/Response.cpp \
 
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 

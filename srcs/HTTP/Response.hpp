@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Webserv.hpp"
-#include "HttpRequest.hpp"
-#include "HttpStatusCodes.hpp"
+#include "Request.hpp"
+#include "StatusCodes.hpp"
 #include "MimeTypes.hpp"
 #include "Pipe.hpp"
 #include "CgiHandler.hpp"
@@ -26,14 +26,14 @@ class HttpResponse
 
 		std::string getResponse();
 		size_t getResponseBodyLength();
-		HttpStatusCodes getErrorCode() const;
+		HTTP::StatusCode::Code getErrorCode() const;
 
 		void buildResponse();
 		void reset();
 		void cutResponse(size_t size);
 		int getCgistate();
 		void setCgistate(int state);
-		// void setResponse(HttpStatusCodes code);
+		// void setResponse(HTTP::StatusCode code);
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
@@ -46,14 +46,12 @@ class HttpResponse
 		int _clientFd;
 		HttpRequest _request;
 
-		std::string _requestHeaders; // This is temp only, Later to be changed to something like map<Header_name, Header details>
-
 		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
 		std::vector<uint8_t> _responseBody;
 		std::vector<uint8_t> _autoIndexBody;
 
 		std::string _responseHeader;
-		HttpStatusCodes _statusCode;
+		HTTP::StatusCode::Code _statusCode;
 
 		// void tokenize(std::string&, std::string&, std::string del = "\n");
 
@@ -68,7 +66,7 @@ class HttpResponse
 		bool buildBody();
 		void buildErrorBody();
 		bool buildAutoIndexBody();
-		void setErrorResponse(HttpStatusCodes code);
+		void setErrorResponse(HTTP::StatusCode::Code code);
 		bool requestIsSuccessful();
 		void setStatus();
 		void setHeaders();

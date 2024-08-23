@@ -5,7 +5,7 @@
 
 # [Coding Guidelines](./docs/guidelines.md)
 
-## Naming Conventions
+# Naming Conventions
 
 - Use camel case for functions and variables.
 	- Example: `myFunction`, `myVariable`

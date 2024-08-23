@@ -123,11 +123,9 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 	_env["SERVER_SOFTWARE"] = "CRATIX";
 }
 
-//TODO make noneblcking MOEDER
-// TODO ask about the epollin and epollout cgi ahndling based on the client.cgi state.
-void CgiHandler::execute(HttpStatusCodes &error_code) {
+void CgiHandler::execute(HTTP::StatusCode::Code &error_code) {
 	if (!_cgiArgv[0] || !_cgiArgv[1]) {
-		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
+		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
 
@@ -140,7 +138,7 @@ void CgiHandler::execute(HttpStatusCodes &error_code) {
 
 	if (!pipeOut.createPipe()) {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "pipe_in creation failed");
-		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
+		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
 
@@ -184,7 +182,7 @@ void CgiHandler::execute(HttpStatusCodes &error_code) {
 	} else if (_cgiPid < 0) {
 		state = 2;
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
-		error_code = HttpStatusCodes::INTERNAL_SERVER_ERROR;
+		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 	} else {
 		waitpid(_cgiPid, NULL, -1);
 		pipeOut.closeWrite();

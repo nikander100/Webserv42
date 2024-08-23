@@ -2,10 +2,10 @@
 
 #include "Webserv.hpp"
 #include "Method.hpp"
-#include "HttpRequest.hpp"
+#include "Request.hpp"
 #include "Pipe.hpp"
 #include "Location.hpp"
-#include "HttpStatusCodes.hpp"
+#include "StatusCodes.hpp"
 #include "EpollManager.hpp"
 
 class CgiHandler
@@ -19,7 +19,7 @@ class CgiHandler
 
 		void initEnv(HttpRequest& req, const Location &location);
 		void initEnvCgi(HttpRequest& req, const Location &location);
-		void execute(HttpStatusCodes &error_code);
+		void execute(HTTP::StatusCode::Code &error_code);
 		void reset();
 		std::string setCookie(const std::string cookie_str); //omNomNom.
 

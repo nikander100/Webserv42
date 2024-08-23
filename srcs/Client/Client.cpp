@@ -5,7 +5,7 @@ Client::Client(std::unique_ptr<ClientSocket> socket, Server &server)
 		response = std::make_unique<HttpResponse>(server, _socket->getFd());
 }
 
-Client::~Client() { //TODO JE MOEDER handle delete cgihandler event data?
+Client::~Client() {
 	DEBUG_PRINT(RED, "Client destroyed: " << inet_ntoa(getAddress().sin_addr) << ":" << getFd());
 	_socket->close();
 }
@@ -19,28 +19,24 @@ struct sockaddr_in Client::getAddress() const {
 }
 
 void Client::send() {
-	_socket->send(response->getResponse());
+	try {
+		_socket->send(response->getResponse());
+	} catch (const std::runtime_error &e) {
+		close();
+		throw;
+	}
 	updateTime();
 	// clear(); // TODO maybe not needed only clear rersponse?
 	clearResponse();
 }
 
 void Client::recv() {
-	try {
-		std::string data = _socket->recv();
-		if (data.empty()) {
-			throw std::runtime_error("Client disconnected");
-		}
-
-		clearRequest();
-		feed(data);
-	} catch(const std::exception& e) {
-		EpollManager::getInstance().removeFromEpoll(_socket->getFd());
-		std::cerr << e.what() << '\n';
+	std::string data = _socket->recv();
+	if (data.empty()) {
+		throw std::runtime_error("Client disconnected");
 	}
-	
-
-
+	clearRequest();
+	feed(data);
 }
 
 void Client::close() {
@@ -60,7 +56,7 @@ bool Client::requestState() const {
 	return _request.parsingComplete();
 }
 
-HttpStatusCodes Client::requestError() const {
+HTTP::StatusCode::Code Client::requestError() const {
 	return _request.errorCode();
 }
 

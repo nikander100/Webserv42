@@ -57,10 +57,10 @@ public:
 	int getListenFd(void) const;
 
 	// Accessors for the 'errorPages' member variable.
-	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
-	std::pair<bool, std::string> getErrorPage(HttpStatusCodes key);
+	const std::unordered_map<HTTP::StatusCode::Code, std::string> &getErrorPages(void) const;
+	std::pair<bool, std::string> getErrorPage(HTTP::StatusCode::Code key);
 	void setErrorPages(const std::vector<std::string> &error_pages);
-	void setErrorPage(HttpStatusCodes key, std::string path);
+	void setErrorPage(HTTP::StatusCode::Code key, std::string path);
 
 	// Accessors for the 'locations' member variable.
 	const std::unordered_map<std::string, Location> &getLocations(void);
@@ -102,7 +102,7 @@ private:
 	unsigned long _clientMaxBodySize;
 	std::string _index;
 	bool _autoIndex;
-	std::unordered_map<HttpStatusCodes, std::string> _errorPages;
+	std::unordered_map<HTTP::StatusCode::Code, std::string> _errorPages;
 	std::unordered_map<std::string, Location> _locations;
 	
 	ServerSocket _socket; // TODO make this a unique_ptr

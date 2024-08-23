@@ -1,7 +1,7 @@
-#include "../includes/HttpRequest.hpp"
+#include "Request.hpp"
 
 HttpRequest::HttpRequest() : 
-	_state(Start), _method(Method::UNKNOWN), _statusCode(HttpStatusCodes::NONE), _serverName(""),
+	_state(Start), _method(Method::UNKNOWN), _statusCode(HTTP::StatusCode::Code::NONE), _serverName(""),
 	_path(""), _query(""), _fragment(""), _verMajor(0), _verMinor(0), _contentLength(0),
 	_chunkSize(0), _headers(), _body(""), _boundary(""){
 }
@@ -68,7 +68,7 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 
 		// Check the combined length of _path and _query
 		if (_path.length() + _query.length() > MAX_URI_LENGTH) {
-			_statusCode = HttpStatusCodes::URI_TOO_LONG;
+			_statusCode = HTTP::StatusCode::Code::URI_TOO_LONG;
 			return false;
 		}
 
@@ -120,13 +120,13 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 	if (_headers.find("host") != _headers.end()) {
 		_serverName = _headers["host"];
 	} else {
-		_statusCode = HttpStatusCodes::BAD_REQUEST;
+		_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 		std::cerr << "Invalid request: Host header missing" << std::endl;
 		return false;
 	}
 	if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
 		if (_headers.find("content-length") != _headers.end()) {
-			_statusCode = HttpStatusCodes::BAD_REQUEST;
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 			std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
 			return false;
 		}
@@ -147,7 +147,7 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 		if (pos != std::string::npos) {
 			_boundary = _headers["content-type"].substr(pos + 9);
 		} else {
-			_statusCode = HttpStatusCodes::BAD_REQUEST;
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 			std::cerr << "Invalid request: multipart/form-data boundary missing" << std::endl;
 			return false;
 		}
@@ -155,7 +155,7 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 	} else {
 		// check if request is malformed
 		if (!stream.eof()) {
-			_statusCode = HttpStatusCodes::BAD_REQUEST;
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 			std::cerr << "Malformed request" << std::endl;
 			return false;
 		}
@@ -200,16 +200,16 @@ bool HttpRequest::feed(const std::string &data) {
 				if (!std::getline(stream, line)) {
 					std::cerr << "Failed to read request line" << std::endl;
 					return false;
-					_statusCode = HttpStatusCodes::NOT_IMPLEMENTED;
+					_statusCode = HTTP::StatusCode::Code::NOT_IMPLEMENTED;
 				}
 
 				if (parseRequestLine(line)) {
 					_state = Method_Line_Parsed;
 				} else {
-					if (_statusCode == HttpStatusCodes::URI_TOO_LONG) {
+					if (_statusCode == HTTP::StatusCode::Code::URI_TOO_LONG) {
 						std::cerr << "URI too long" << std::endl;
 					} else {
-						_statusCode = HttpStatusCodes::BAD_REQUEST;
+						_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 						std::cerr << "Invalid request line" << std::endl;
 					}
 					return false;
@@ -218,7 +218,7 @@ bool HttpRequest::feed(const std::string &data) {
 			}
 			case Method_Line_Parsed: {
 				if (!std::getline(stream, line)) {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Failed to read request line" << std::endl;
 					return false;
 				}
@@ -226,7 +226,7 @@ bool HttpRequest::feed(const std::string &data) {
 				if (line == "\r") {
 					_state = Header_Parsed;
 				} else if (!parseHeader(line)) {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Invalid header" << std::endl;
 					return false;
 				}
@@ -245,7 +245,7 @@ bool HttpRequest::feed(const std::string &data) {
 					// _flagBodyDone = true;
 					_state = Complete;
 				} else {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Invalid content-length or incomplete body" << std::endl;
 					_state = Complete;
 				}
@@ -253,12 +253,12 @@ bool HttpRequest::feed(const std::string &data) {
 			}
 			case Reading_Chunk_Size: {
 				if (!std::getline(stream, line)) {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Failed to read chunk size" << std::endl;
 					return false;
 				}
 				if (!parseChunkSize(line)) {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Invalid chunk size" << std::endl;
 					return false;
 				}
@@ -277,7 +277,7 @@ bool HttpRequest::feed(const std::string &data) {
 					// _flagBodyDone = true;
 					_state = Reading_Chunk_Size;
 				} else {
-					_statusCode = HttpStatusCodes::BAD_REQUEST;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 					std::cerr << "Incomplete chunk data" << std::endl;
 					return false;
 				}
@@ -285,7 +285,7 @@ bool HttpRequest::feed(const std::string &data) {
 			}
 			default:
 				std::cerr << "Unkown state" << std::endl;
-				_statusCode = HttpStatusCodes::BAD_REQUEST;
+				_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 				return false;
 				// instead of returning set error flag so later can reset the request object.
 					// send bad ... response.
@@ -340,7 +340,7 @@ const std::string &HttpRequest::getBoundary() const {
 	return _boundary;
 }
 
-HttpStatusCodes HttpRequest::errorCode() const {
+HTTP::StatusCode::Code HttpRequest::errorCode() const {
 	return _statusCode;
 }
 
@@ -365,7 +365,7 @@ bool HttpRequest::keepAlive() const {
 void HttpRequest::reset() {
 	_state = Start;
 	_method = Method::UNKNOWN;
-	_statusCode = HttpStatusCodes::NONE;
+	_statusCode = HTTP::StatusCode::Code::NONE;
 	_serverName.clear();
 	_path.clear();
 	_query.clear();

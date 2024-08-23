@@ -56,7 +56,7 @@ constexpr uint16_t TEST_PORT = 8727;
 
 // #include "Method.hpp"
 #include "BuiltinErrorPages.hpp"
-#include "HttpStatusCodes.hpp"
+#include "StatusCodes.hpp"
 #include "FileUtils.hpp"
 
 //part of reading config file

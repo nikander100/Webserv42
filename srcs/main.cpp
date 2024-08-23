@@ -38,6 +38,7 @@ int	main(int ac, char **av) {
 			std::signal(SIGINT, handleSignal);
 			std::signal(SIGTERM, handleSIGTERM);
 			std::signal(SIGQUIT, handleSignal);
+			std::signal(SIGPIPE, SIG_IGN);
 
 			testing.setupServers();
 			testing.start();

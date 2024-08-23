@@ -2,9 +2,9 @@
 
 #include "Webserv.hpp"
 #include "ClientSocket.hpp"
-#include "HttpRequest.hpp"
-#include "HttpStatusCodes.hpp"
-#include "HttpResponse.hpp"
+#include "Request.hpp"
+#include "StatusCodes.hpp"
+#include "Response.hpp"
 #include "Server.hpp"
 
 class Server;
@@ -30,7 +30,7 @@ class Client {
 		HttpRequest &getRequest();
 		void feed(const std::string &data);
 		bool requestState() const;
-		HttpStatusCodes requestError() const;
+		HTTP::StatusCode::Code requestError() const;
 		void clearRequest();
 		bool keepAlive() const;
 

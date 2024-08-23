@@ -120,6 +120,7 @@
 	"typeinfo": "cpp",
 	"semaphore": "cpp",
 	"codecvt": "cpp",
-	"iomanip": "cpp"
+	"iomanip": "cpp",
+	"csignal": "cpp"
 }
 }

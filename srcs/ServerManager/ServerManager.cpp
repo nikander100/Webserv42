@@ -21,16 +21,15 @@ void ServerManager::setupServers()
 	testServer->setRoot(root);
 	std::string index = "index.html;";
 	testServer->setIndex(index); 
-	// TODO check response gen, if no index in config try index.html as default, 
+		// TODO check response gen, if no index in config try index.html as default, 
 	// if not found return 403 if autoindex is off, else return autoindex 
 	// currently returns 404 if index not found on both on and offe
 
 	// TODO currently going to ip/or ip  returns 403, should return index.html
-	std::string autoindex = "on;";
+	std::string autoindex = "off;";
 	testServer->setAutoIndex(autoindex);
 	std::string client_max_body_size = "3000000;";
 	testServer->setClientMaxBodySize(client_max_body_size);
-
 	std::vector<std::string> location_settings = {
 		"allow_methods GET POST DELETE;",
 		"autoindex off;"
@@ -38,8 +37,34 @@ void ServerManager::setupServers()
 	std::string locationPath = "/;";
 	testServer->setLocation(locationPath, location_settings);
 
+	std::unique_ptr<Server> testServer1 = std::make_unique<Server>(); // Create a unique_ptr to a Server
+	
+	
+	std::string port1 = "8081;";
+	testServer1->setPort(port1);
+	std::string name1 = "test1;";
+	testServer->setServerName(name1);
+	std::string host1 = "127.0.0.1;";
+	testServer1->setHost(host1);
+	std::string root1 = "wwwroot/server_dir/;";
+	testServer1->setRoot(root1);
+	std::string index1 = "index.html;";
+	testServer1->setIndex(index1); 
+	std::string autoindex1 = "off;";
+	testServer1->setAutoIndex(autoindex1);
+	std::string client_max_body_size1 = "3000000;";
+	testServer1->setClientMaxBodySize(client_max_body_size1);
+
+	std::vector<std::string> location_settings1 = {
+		"allow_methods GET POST DELETE;",
+		"autoindex on;"
+	};
+	std::string locationPath1 = "/;";
+	testServer1->setLocation(locationPath1, location_settings);
+
 	
 	_servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
+	_servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
 
 	for (auto &server : _servers) {
 		server->setupServer(); // Use -> to call methods on the Server object
@@ -70,16 +95,16 @@ void ServerManager::start() {
 	_running = true;
 	while (_running) {
 		processEvents(events);
+		checkClientTimeouts();
 	}
 }
 
 void ServerManager::processEvents(std::vector<struct epoll_event>& events) {
 	events.clear();
-	events = EpollManager::getInstance().waitForEvents();
+	events = EpollManager::getInstance().waitForEvents(1000);
 	for (auto &event : events) {
 		assignToResponsibleServer(event);
 	}
-	checkClientTimeouts();
 }
 
 void ServerManager::checkClientTimeouts() {

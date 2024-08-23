@@ -3,7 +3,7 @@
 
 #include "Webserv.hpp"
 #include "Method.hpp"
-#include "HttpStatusCodes.hpp"
+#include "StatusCodes.hpp"
 
 /**
  * @brief Enumeration representing the different parsing states during HTTP request parsing.
@@ -27,7 +27,7 @@ class HttpRequest
 		bool parsingComplete() const;
 		void print() const;
 		void reset();
-		HttpStatusCodes errorCode() const;
+		HTTP::StatusCode::Code errorCode() const;
 		bool keepAlive() const;
 
 		const std::string &getServerName() const;
@@ -43,7 +43,7 @@ class HttpRequest
 	private:
 		State _state;
 		Method _method;
-		HttpStatusCodes _statusCode;
+		HTTP::StatusCode::Code _statusCode;
 
 		std::string _serverName;
 		std::string _path;

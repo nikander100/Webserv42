@@ -6,7 +6,6 @@ Socket::Socket(int fd, struct sockaddr_in addr) : _fd(fd), _address(addr) {
 void Socket::close() {
 	if (_fd != -1) {
 		::close(_fd);
-		_fd = -1;
 	}	
 }
 
