@@ -26,13 +26,13 @@ void ServerManager::setupServers()
 	// currently returns 404 if index not found on both on and offe
 
 	// TODO currently going to ip/or ip  returns 403, should return index.html
-	std::string autoindex = "off;";
+	std::string autoindex = "on;";
 	testServer->setAutoIndex(autoindex);
 	std::string client_max_body_size = "3000000;";
 	testServer->setClientMaxBodySize(client_max_body_size);
 	std::vector<std::string> location_settings = {
 		"allow_methods GET POST DELETE;",
-		"autoindex off;"
+		"autoindex on;"
 	};
 	std::string locationPath = "/;";
 	testServer->setLocation(locationPath, location_settings);
@@ -50,7 +50,7 @@ void ServerManager::setupServers()
 	testServer1->setRoot(root1);
 	std::string index1 = "index.html;";
 	testServer1->setIndex(index1); 
-	std::string autoindex1 = "off;";
+	std::string autoindex1 = "on;";
 	testServer1->setAutoIndex(autoindex1);
 	std::string client_max_body_size1 = "3000000;";
 	testServer1->setClientMaxBodySize(client_max_body_size1);

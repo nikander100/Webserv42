@@ -10,7 +10,7 @@ HttpRequest::~HttpRequest() {
 }
 
 bool HttpRequest::parsingComplete() const {
-	return _state == Complete;
+	return _state == Complete || _statusCode != HTTP::StatusCode::Code::NONE;
 }
 // can possibly be removed
 // bool HttpRequest::parsingComplete() const {
@@ -23,15 +23,36 @@ bool HttpRequest::isValidUri(const std::string &uri) {
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789"
-		"-._~:/?#[]@!$&'()*+,;=";
+		"-._~:/?#[]@!$&'()*+,;=%"; // Added '%' to allowed characters
 
-	for (char c : uri) {
+	for (size_t i = 0; i < uri.length(); ++i) {
+		char c = uri[i];
 		if (allowedChars.find(c) == std::string::npos) {
-			return false;
+			// Check for percent-encoded characters
+			if (c == '%' && i + 2 < uri.length() && 
+				isxdigit(uri[i + 1]) && isxdigit(uri[i + 2])) {
+				i += 2; // Skip the next two hex digits
+			} else {
+				return false;
+			}
 		}
 	}
 
 	return true;
+}
+
+std::string HttpRequest::decodeUri(const std::string &uri) {
+	std::ostringstream decoded;
+	for (size_t i = 0; i < uri.length(); ++i) {
+		if (uri[i] == '%' && i + 2 < uri.length() && isxdigit(uri[i + 1]) && isxdigit(uri[i + 2])) {
+			std::string hex = uri.substr(i + 1, 2);
+			decoded << static_cast<char>(std::stoi(hex, nullptr, 16));
+			i += 2;
+		} else {
+			decoded << uri[i];
+		}
+	}
+	return decoded.str();
 }
 
 // checks http header according to RFC 2616 (HTTP/1.1) tokens are defined in RFC 2616 section 2.2
@@ -60,7 +81,11 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 
 	if (std::regex_match(line, match, pattern)) {
 		_method = stringToMethod(match[1]);
-		_path = match[3];
+		// validate path more like RFC for improved security. (not required for the project but easy to implement)
+		if (!isValidUri(match[3])) {
+			return false;
+		}
+		_path = decodeUri(match[3]);
 		_query = match[4].length() > 1 ? match.str(4).substr(1) : ""; // remove leading '?'
 		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
 		_verMajor = std::stoi(match[6]);
@@ -72,10 +97,7 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 			return false;
 		}
 
-		// validate path more like RFC for improved security. (not required for the project but easy to implement)
-		if (!isValidUri(_path)) {
-			return false;
-		}
+
 		return _method != Method::UNKNOWN;
 	}
 	return false;

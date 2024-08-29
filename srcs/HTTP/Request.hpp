@@ -59,6 +59,7 @@ class HttpRequest
 		// std::vector<u_int8_t> body;
 
 		bool isValidUri(const std::string &uri);
+		std::string decodeUri(const std::string &uri);
 		bool isValidToken(const std::string &token);
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);

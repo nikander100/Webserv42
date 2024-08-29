@@ -30,6 +30,7 @@ void HttpResponse::appendContentTypeHeader() {
 	std::string path = _targetFile;
 
 	std::string extension = path.rfind('.') != std::string::npos ? path.substr(path.rfind('.')) : "";
+	extension = (_autoIndex && path.back() == '/') ? ".html" : extension;
 
 	// Determine MIME type
 	std::string mimeType = (_statusCode == HTTP::StatusCode::Code::OK) ? getMimeTypeFromExtension(extension) : "text/html";
