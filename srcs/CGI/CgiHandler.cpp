@@ -199,7 +199,9 @@ void CgiHandler::execute() {
 		_cgiOutput.clear();
 
 		while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
-			_cgiOutput += static_cast<std::ostringstream &>((std::ostringstream() << std::dec << buffer)).str();
+			std::ostringstream oss;
+			oss << std::dec << buffer;
+			_cgiOutput += oss.str();
 			memset(buffer, 0, sizeof(buffer));
 		}
 
