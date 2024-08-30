@@ -19,7 +19,7 @@ class CgiHandler
 
 		void initEnv(HttpRequest& req, const Location &location);
 		void initEnvCgi(HttpRequest& req, const Location &location);
-		void execute(HTTP::StatusCode::Code &error_code);
+		void execute();
 		void reset();
 		std::string setCookie(const std::string cookie_str); //omNomNom.
 
@@ -30,6 +30,7 @@ class CgiHandler
 		const pid_t &getCgiPid() const;
 		const std::string &getCgiPath() const;
 		std::string getCgiOutput() const;
+		const HTTP::StatusCode::Code &getStatusCode() const;
 
 		std::string getPathInfo(const std::string& path, const std::vector<std::pair<std::string, std::string>>& extensions);
 		std::string decode(std::string &path);
@@ -41,6 +42,8 @@ class CgiHandler
 		std::vector<std::unique_ptr<char[]>> _cgiArgv;
 		std::string _cgiPath;
 		pid_t _cgiPid;
+
+		HTTP::StatusCode::Code _error_code;
 
 		std::string _cgiOutput;
 		int fromHexToDec(const std::string& hex);

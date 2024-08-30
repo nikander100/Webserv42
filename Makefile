@@ -14,6 +14,7 @@ SRCS := Socket/Socket.cpp \
 		Location/Location.cpp \
 		HTTP/Request.cpp \
 		HTTP/Response.cpp \
+		CGI/CgiHandler.cpp 
 
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 

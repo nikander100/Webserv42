@@ -109,7 +109,7 @@ const std::string &Location::getAlias() const {
 	return _alias;
 }
 
-const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtension() const {
+const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtensions() const {
 	return _cgiPathExtension;
 }
 

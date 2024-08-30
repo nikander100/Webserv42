@@ -1,9 +1,9 @@
 #include "CgiHandler.hpp"
 
-CgiHandler::CgiHandler() : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath(""), state(0) {
+CgiHandler::CgiHandler() : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(""), state(0) {
 }
 
-CgiHandler::CgiHandler(std::string path) : _cgiEnvp(NULL), _cgiArgv(NULL), _cgiPid(-1), _cgiPath(path), state(0) {
+CgiHandler::CgiHandler(std::string path) : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(path), state(0) {
 }
 
 CgiHandler::~CgiHandler() { // todo possibly use free instead.
@@ -32,9 +32,13 @@ const std::string &CgiHandler::getCgiPath() const {
 	return _cgiPath;
 }
 
+const HTTP::StatusCode::Code &CgiHandler::getStatusCode() const {
+	return _error_code;
+}
+
 void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 	// Construct the CGI executable path
-	std::string cgiExec = "cgi-bin/" + location.getCgiPathExtension().front().first;
+	std::string cgiExec = "cgi-bin/" + location.getCgiPathExtensions().front().first;
 
 	char *cwd = getcwd(nullptr, 0);
 	if (!_cgiPath.starts_with('/')) {
@@ -91,9 +95,15 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 }
 
 void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
-	std::string extension = _cgiPath.substr(_cgiPath.find('.'));
-	auto it_path = location.getExtensionPath().find(extension);
-	if (it_path == location.getExtensionPath().end()) {
+	std::string extension = _cgiPath.substr(_cgiPath.find_last_of('.'));
+	const auto& cgiPathExtensions = location.getCgiPathExtensions();
+	auto it_path = std::find_if(cgiPathExtensions.begin(), cgiPathExtensions.end(),
+		[&extension](const std::pair<std::string, std::string>& element) {
+			return element.first == extension;
+	});
+	if (it_path == cgiPathExtensions.end()) {
+		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "CGI extension not found in location");
+		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
 	std::string ext_path = it_path->second;
@@ -106,7 +116,7 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 	int positionIndex = _cgiPath.find("cgi-bin/");
 	_env["SCRIPT_NAME"] = _cgiPath;
 	_env["SCRIPT_FILENAME"] = (positionIndex == std::string::npos || positionIndex + 8 > _cgiPath.size()) ? "" : _cgiPath.substr(positionIndex + 8);
-	_env["PATH_INFO"] = getPathInfo(req.getPath(), location.getCgiPathExtension());
+	_env["PATH_INFO"] = getPathInfo(req.getPath(), location.getCgiPathExtensions());
 	_env["PATH_TRANSLATED"] = location.getRoot() + (_env["PATH_INFO"].empty() ? "/" : _env["PATH_INFO"]);
 	_env["QUERY_STRING"] = decode(req.getQuery());
 	_env["REMOTE_ADDR"] = req.getHeader("host");
@@ -123,9 +133,9 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 	_env["SERVER_SOFTWARE"] = "CRATIX";
 }
 
-void CgiHandler::execute(HTTP::StatusCode::Code &error_code) {
-	if (!_cgiArgv[0] || !_cgiArgv[1]) {
-		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+void CgiHandler::execute() {
+	if (!_cgiArgv[0] || !_cgiArgv[1] || _error_code == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
 
@@ -138,7 +148,7 @@ void CgiHandler::execute(HTTP::StatusCode::Code &error_code) {
 
 	if (!pipeOut.createPipe()) {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "pipe_in creation failed");
-		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
 
@@ -182,7 +192,7 @@ void CgiHandler::execute(HTTP::StatusCode::Code &error_code) {
 	} else if (_cgiPid < 0) {
 		state = 2;
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
-		error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 	} else {
 		waitpid(_cgiPid, NULL, -1);
 		pipeOut.closeWrite();

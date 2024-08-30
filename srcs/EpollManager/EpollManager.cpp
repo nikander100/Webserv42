@@ -4,7 +4,7 @@
 EpollManager::EpollManager() {
 	_epollFd = epoll_create1(EPOLL_CLOEXEC);
 	if (_epollFd == -1) {
-		std::cerr << "Error creating epoll instance: " << strerror(errno) << std::endl;
+		DEBUG_PRINT("Error creating epoll instance: ", strerror(errno));
 		throw std::runtime_error("Failed to create epoll instance"); //TODO USE CUSTOM ERROR LOG
 	}
 }
@@ -29,8 +29,8 @@ void EpollManager::addToEpoll(int fd, uint32_t mask) {
 	event.events = mask;
 
 	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
-		std::cerr << "Error adding fd/socket to epoll: " << strerror(errno) << std::endl;
 		close();
+		DEBUG_PRINT("Error adding fd/socket to epoll: ", strerror(errno));
 		throw std::runtime_error("Failed to add fd to epoll");
 	}
 }
@@ -54,7 +54,7 @@ std::vector<struct epoll_event> EpollManager::waitForEvents(int timeout) {
 	int numEvents = epoll_wait(_epollFd, events.data(), MAX_EVENTS, timeout);
 	if (numEvents == -1) {
 		// Handle error
-		std::cerr << "Error in epoll_wait: " << strerror(errno) << std::endl;
+		DEBUG_PRINT("Error in epoll_wait: ", strerror(errno));
 		throw std::runtime_error("epoll_wait failed");
 	}
 

@@ -122,7 +122,7 @@ bool HttpRequest::parseHeader(const std::string &line) {
 
 			// validate key
 			if (!isValidToken(key)) {
-				std::cerr << "Invalid header key" << std::endl;
+				DEBUG_PRINT("Invalid header key");
 				return false;
 			}
 
@@ -143,13 +143,13 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 		_serverName = _headers["host"];
 	} else {
 		_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-		std::cerr << "Invalid request: Host header missing" << std::endl;
+		DEBUG_PRINT("Invalid request: Host header missing");
 		return false;
 	}
 	if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
 		if (_headers.find("content-length") != _headers.end()) {
 			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-			std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
+			DEBUG_PRINT("Invalid request: both Transfer-Encoding and Content-Length headers present");
 			return false;
 		}
 		_state = Reading_Chunk_Size;
@@ -157,10 +157,10 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 		try {
 			_contentLength = std::stoul(_headers["content-length"]);
 		} catch (const std::invalid_argument& ia) {
-			std::cerr << "Invalid content-length: " << ia.what() << std::endl;
+			DEBUG_PRINT("Invalid content-length: " << ia.what());
 			return false;
 		} catch (const std::out_of_range& oor) {
-			std::cerr << "Content-length out of range: " << oor.what() << std::endl;
+			DEBUG_PRINT("Content-length out of range: " << oor.what());
 			return false;
 		}
 		_state = Reading_Body_Data;
@@ -170,7 +170,7 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 			_boundary = _headers["content-type"].substr(pos + 9);
 		} else {
 			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-			std::cerr << "Invalid request: multipart/form-data boundary missing" << std::endl;
+			DEBUG_PRINT("Invalid request: multipart/form-data boundary missing");
 			return false;
 		}
 		_state = Reading_Body_Data; // Or a specific multipart state if needed
@@ -178,7 +178,7 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 		// check if request is malformed
 		if (!stream.eof()) {
 			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-			std::cerr << "Malformed request" << std::endl;
+			DEBUG_PRINT("Malformed request");
 			return false;
 		}
 		_state = Complete;
@@ -220,7 +220,7 @@ bool HttpRequest::feed(const std::string &data) {
 		switch (_state) {
 			case Start: {
 				if (!std::getline(stream, line)) {
-					std::cerr << "Failed to read request line" << std::endl;
+					DEBUG_PRINT("Failed to read request line");
 					return false;
 					_statusCode = HTTP::StatusCode::Code::NOT_IMPLEMENTED;
 				}
@@ -229,10 +229,10 @@ bool HttpRequest::feed(const std::string &data) {
 					_state = Method_Line_Parsed;
 				} else {
 					if (_statusCode == HTTP::StatusCode::Code::URI_TOO_LONG) {
-						std::cerr << "URI too long" << std::endl;
+						DEBUG_PRINT("URI too long");
 					} else {
 						_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-						std::cerr << "Invalid request line" << std::endl;
+						DEBUG_PRINT("Invalid request line");
 					}
 					return false;
 				}
@@ -241,7 +241,7 @@ bool HttpRequest::feed(const std::string &data) {
 			case Method_Line_Parsed: {
 				if (!std::getline(stream, line)) {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Failed to read request line" << std::endl;
+					DEBUG_PRINT("Failed to read request line");
 					return false;
 				}
 
@@ -249,7 +249,7 @@ bool HttpRequest::feed(const std::string &data) {
 					_state = Header_Parsed;
 				} else if (!parseHeader(line)) {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Invalid header" << std::endl;
+					DEBUG_PRINT("Invalid header");
 					return false;
 				}
 				break;
@@ -264,11 +264,10 @@ bool HttpRequest::feed(const std::string &data) {
 				if (_contentLength > 0 && stream.tellg() + static_cast<std::streamoff>(_contentLength) <= static_cast<std::streamoff>(data.size())) {
 					_body = data.substr(stream.tellg(), _contentLength);
 					stream.seekg(_contentLength, std::ios::cur); // Move the get pointer forward
-					// _flagBodyDone = true;
 					_state = Complete;
 				} else {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Invalid content-length or incomplete body" << std::endl;
+					DEBUG_PRINT("Invalid content-length or incomplete body");
 					_state = Complete;
 				}
 				break;
@@ -276,12 +275,12 @@ bool HttpRequest::feed(const std::string &data) {
 			case Reading_Chunk_Size: {
 				if (!std::getline(stream, line)) {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Failed to read chunk size" << std::endl;
+					DEBUG_PRINT("Failed to read chunk size");
 					return false;
 				}
 				if (!parseChunkSize(line)) {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Invalid chunk size" << std::endl;
+					DEBUG_PRINT("Invalid chunk size");
 					return false;
 				}
 				if (_chunkSize == 0) {
@@ -296,18 +295,17 @@ bool HttpRequest::feed(const std::string &data) {
 					_body.append(data.substr(stream.tellg(), _chunkSize));
 					stream.seekg(_chunkSize, std::ios::cur); // Move the get pointer forward
 					stream.ignore(2); // Skip trailing \r\n
-					// _flagBodyDone = true;
 					_state = Reading_Chunk_Size;
 				} else {
 					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-					std::cerr << "Incomplete chunk data" << std::endl;
+					DEBUG_PRINT("Incomplete chunk data");
 					return false;
 				}
 				break;
 			}
 			default:
-				std::cerr << "Unkown state" << std::endl;
 				_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+				DEBUG_PRINT("Unknown state");
 				return false;
 				// instead of returning set error flag so later can reset the request object.
 					// send bad ... response.

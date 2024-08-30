@@ -22,8 +22,7 @@ class HttpResponse
 		~HttpResponse();
 
 		void setRequest(HttpRequest &request);
-		void setServer(Server &server); // possibly redundant.
-
+		
 		std::string getResponse();
 		size_t getResponseBodyLength();
 		HTTP::StatusCode::Code getErrorCode() const;
@@ -37,9 +36,8 @@ class HttpResponse
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
-		// CgiHandler cgiHandler;
+		CgiHandler cgiHandler;
 
-		// std::string responseContent;
 
 	private:
 		Server &_server;
@@ -52,8 +50,6 @@ class HttpResponse
 
 		std::string _responseHeader;
 		HTTP::StatusCode::Code _statusCode;
-
-		// void tokenize(std::string&, std::string&, std::string del = "\n");
 
 		// new code refactor to dynamic response:
 		std::string _targetFile;

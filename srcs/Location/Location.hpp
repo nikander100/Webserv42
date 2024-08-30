@@ -29,7 +29,7 @@ class Location {
 		const std::string &getIndex() const;
 		const std::string &getReturn() const;
 		const std::string &getAlias() const;
-		const std::vector<std::pair<std::string, std::string>> &getCgiPathExtension() const;
+		const std::vector<std::pair<std::string, std::string>> &getCgiPathExtensions() const;
 		const std::map<std::string, std::string> &getExtensionPath() const;
 		const unsigned long &getMaxBodySize() const;
 

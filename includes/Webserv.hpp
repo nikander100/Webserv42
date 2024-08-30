@@ -44,17 +44,18 @@
 
 constexpr int64_t CONNECTION_TIMEOUT = 60; // 1 minute.
 
+// Default value for the maximum size of the request body.
 // constexpr size_t MAX_CONTENT_SIZE = 33554432; // 32MB
 constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
 
+// Maximum length of a URI.
 constexpr size_t MAX_URI_LENGTH = 4096;
 
 constexpr uint16_t TEST_PORT = 8727;
 
+// Includes required for the servermanager
 #include "AnsiCodes.hpp"
 #include "Debug.hpp"
-
-// #include "Method.hpp"
 #include "BuiltinErrorPages.hpp"
 #include "StatusCodes.hpp"
 #include "FileUtils.hpp"

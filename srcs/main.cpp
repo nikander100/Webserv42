@@ -44,7 +44,7 @@ int	main(int ac, char **av) {
 			testing.start();
 		}
 		catch (std::exception &e) {
-			std::cerr << e.what() << std::endl;
+			DEBUG_PRINT(e.what());
 		}
 		return 0;
 	}

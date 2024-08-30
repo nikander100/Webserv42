@@ -79,7 +79,7 @@ void ServerManager::stop() {
 				server->stop();
 			}
 		} catch (const std::exception &e) {
-		std::cerr << "Error stopping server: " << e.what() << std::endl;
+			DEBUG_PRINT(RED, "Error stopping server: " << e.what());
 		}
 		EpollManager::getInstance().close();
 	}

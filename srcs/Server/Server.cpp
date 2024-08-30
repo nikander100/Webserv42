@@ -104,10 +104,14 @@ std::string Server::getRoot() const {
 void Server::setClientMaxBodySize(std::string &client_max_body_size) {
 	checkInput(client_max_body_size);
 	try {
-		_clientMaxBodySize = std::stoul(client_max_body_size);
-	} catch (const std::invalid_argument &e){
+		size_t pos;
+		_clientMaxBodySize = std::stoul(client_max_body_size, &pos);
+		if (pos != client_max_body_size.length()) {
+			throw std::invalid_argument("Wrong syntax: Invalid characters in clientMaxBodySize");
+		}
+	} catch (const std::invalid_argument &e) {
 		throw Error("Wrong syntax: clientMaxBodySize");
-	} catch (std::out_of_range &e) {
+	} catch (const std::out_of_range &e) {
 		throw Error("Wrong syntax: clientMaxBodySize");
 	}
 }
@@ -399,7 +403,7 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 	const std::string path = location.getPath();
 	
 	if (path == "/cgi-bin") {
-		const auto &cgiPathExtension = location.getCgiPathExtension();
+		const auto &cgiPathExtension = location.getCgiPathExtensions();
 		if (cgiPathExtension.empty() || location.getIndex().empty()) {
 			return CgiValidation::FAILED_CGI_VALIDATION;
 		}
@@ -475,7 +479,7 @@ void Server::setupServer() {
 		// Add server socket to epoll
 		EpollManager::getInstance().addToEpoll(_socket.getFd(), EPOLLIN);
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, "Server::setupServer: " << e.what());
 		exit(EXIT_FAILURE);
 	}
 }
@@ -522,7 +526,7 @@ void Server::acceptNewConnection() {
 		// Add client socket to epoll
 		EpollManager::getInstance().addToEpoll(ClientFd, EPOLLIN | EPOLLRDHUP); //| EPOLLET
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, "Server::acceptNewConnection: " << e.what());
 	}
 }
 
@@ -566,7 +570,7 @@ void Server::handleEpollOut(struct epoll_event &event) {
 			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED,"Server::handleEpollOut: " << e.what());
 		EpollManager::getInstance().removeFromEpoll(event.data.fd);
 		removeClient(event.data.fd);
 	}
@@ -584,13 +588,12 @@ void Server::handleEpollIn(struct epoll_event &event) {
 			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
 	} catch (const std::runtime_error& e) {
-		DEBUG_PRINT(RED, e.what());
+		DEBUG_PRINT(RED << e.what());
 		EpollManager::getInstance().removeFromEpoll(event.data.fd);
 		removeClient(event.data.fd);
 	}
 }
 
-// TODO make read and write request...
 void Server::handleEvent(struct epoll_event &event) {
 	try {
 		if (event.events & EPOLLRDHUP) {
@@ -602,10 +605,10 @@ void Server::handleEvent(struct epoll_event &event) {
 		} else if (event.events & EPOLLIN) {
 			handleEpollIn(event); // Handle Request.
 		} 
-	} catch (const std::runtime_error& e) {
+	} catch (const std::runtime_error& e) { // TODO test with client close and check if it works.
 		// EpollManager::getInstance().removeFromEpoll(event.data.fd);
 		// removeClient(event.data.fd);
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, "Server::handleEvent: " << e.what());
 	}
 }
 

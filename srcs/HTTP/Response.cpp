@@ -209,12 +209,15 @@ bool HttpResponse::handleCgi(Location &location) {
 		return false;
 	}
 
-	// cgiHandler.reset();
-	// cgiHandler.setCgiPath(path);
+	cgiHandler.reset();
+	cgiHandler.setCgiPath(path);
 	_cgi = 1;
-	// cgiHandler.initEnv(_request, location);
-	// cgiHandler.execute(_statusCode, _clientFd);
-	if (_statusCode == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
+	cgiHandler.initEnv(_request, location);
+	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		return false;
+	}
+	cgiHandler.execute();
+	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
 		return false;
 	}
 
@@ -233,10 +236,12 @@ bool HttpResponse::handleTarget() {
 			return false;
 		}
 
-		// is body larger then allowed
-		if (_request.getBody().length() > location.getMaxBodySize()) {
-			_statusCode = HTTP::StatusCode::Code::PAYLOAD_TOO_LARGE;
-			return false;
+		if (_request.getMethod() == Method::POST || _request.getMethod() == Method::PUT) {
+			// Check if body is larger than allowed
+			if (_request.getBody().length() > location.getMaxBodySize()) {
+				_statusCode = HTTP::StatusCode::Code::PAYLOAD_TOO_LARGE;
+				return false;
+			}
 		}
 
 		// If the location to redirect to is specified, update the response to indicate
@@ -267,7 +272,7 @@ bool HttpResponse::handleTarget() {
 		}
 
 		// Retrieve the CGI path and extension configurations for the target location
-		const auto& cgiConfigs = location.getCgiPathExtension();
+		const auto& cgiConfigs = location.getCgiPathExtensions();
 
 		// Check if there are any CGI configurations for this location
 		if (!cgiConfigs.empty()) {
@@ -355,6 +360,13 @@ bool HttpResponse::handleTarget() {
 				return false;
 			}
 		}
+		// is body larger then allowed
+		if (_request.getMethod() == Method::POST || _request.getMethod() == Method::PUT) {
+			if (_request.getBody().length() > std::stoul(_server.getClientMaxBodySize())) {
+				_statusCode = HTTP::StatusCode::Code::PAYLOAD_TOO_LARGE;
+				return false;
+			}
+		}
 	}
 	return true;
 }
@@ -408,11 +420,6 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 }
 
 bool HttpResponse::buildBody() {
-	if (_request.getBody().length() > std::stoul(_server.getClientMaxBodySize())) { // TODO check this also for location?
-		_statusCode = HTTP::StatusCode::Code::PAYLOAD_TOO_LARGE;
-		return false;
-	}
-
 	if (!handleTarget()) {
 		return false;
 	}
@@ -485,7 +492,7 @@ bool HttpResponse::readFile() { // TODO remove debug
 	}
 
 	/* DEBUG START */
-	if (_targetFile.substr(_targetFile.find_last_of(".")) == ".html") {
+	if (_targetFile.substr(_targetFile.find_last_of(".")) == ".html" && DEBUG == 1) {
 		std::cout << YELLOW << "Response body:" << RESET << std::endl;
 		for (char c : _responseBody) {
 			std::cout << c;
@@ -552,7 +559,7 @@ bool HttpResponse::buildAutoIndexBody() {
 	// Open the directory
 	directory = opendir(_targetFile.c_str());
 	if (directory == NULL) {
-		std::cerr << "opendir failed for " << _targetFile << std::endl;
+		DEBUG_PRINT(RED, "opendir failed for " + _targetFile);
 		return false;
 	}
 
@@ -581,7 +588,7 @@ bool HttpResponse::buildAutoIndexBody() {
 		// Get file path and stats
 		file_path = _targetFile + entityStruct->d_name;
 		if (stat(file_path.c_str(), &file_stat) == -1) {
-			std::cerr << "stat failed for " << file_path << std::endl;
+			DEBUG_PRINT(RED, "stat failed for " + file_path);
 			continue;
 		}
 
