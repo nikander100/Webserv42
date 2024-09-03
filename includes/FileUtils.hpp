@@ -65,18 +65,21 @@ namespace FileUtils {
 	 * 
 	 * @param path The base path.
 	 * @param index The index to append to the base path.
-	 * @return int Returns 0 if either index or path + index is a file and is readable, and -1 otherwise.
+	 * @return bool Returns true if either index or path + index is a file and is readable, and false otherwise.
 	 * @retval 0 The file exists and is readable.
 	 * @retval -1 The file does not exist or is not readable.
 	 */
-	inline int isFileExistAndReadable(const std::string& path, const std::string& index) {
+	inline bool isFileExistAndReadable(const std::string& path, const std::string& index) {
 		if (getTypePath(index) == FileType::FILE && checkFile(index) == 0) {
-			return 0;
+			DEBUG_PRINT(GREEN, "index is a file and is readable");
+			return true;
 		}
 		if (getTypePath(path + index) == FileType::FILE && checkFile(path + index) == 0) {
-			return 0;
+			DEBUG_PRINT(GREEN, "index is a file and is readable");
+			return true;
 		}
-		return -1;
+		DEBUG_PRINT(RED, "index is not a file or is not readable");
+		return false;
 	}
 
 } // namespace FileUtils

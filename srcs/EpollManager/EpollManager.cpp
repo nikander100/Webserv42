@@ -4,15 +4,18 @@
 EpollManager::EpollManager() {
 	_epollFd = epoll_create1(EPOLL_CLOEXEC);
 	if (_epollFd == -1) {
-		std::cerr << "Error creating epoll instance: " << strerror(errno) << std::endl;
+		DEBUG_PRINT("Error creating epoll instance: ", strerror(errno));
 		throw std::runtime_error("Failed to create epoll instance"); //TODO USE CUSTOM ERROR LOG
 	}
 }
 
 EpollManager::~EpollManager() {
 	// Close the epoll file descriptor
+	close();
+}
+void EpollManager::close() {
 	if (_epollFd != -1)
-		close(_epollFd);
+		::close(_epollFd);
 }
 
 EpollManager &EpollManager::getInstance() {
@@ -20,25 +23,27 @@ EpollManager &EpollManager::getInstance() {
 	return instance;
 }
 
-void EpollManager::addToEpoll(int fd) {
-	struct epoll_event event;
+void EpollManager::addToEpoll(int fd, uint32_t mask) {
+	struct epoll_event event = {};
 	event.data.fd = fd;
-	event.events = EPOLLIN | EPOLLET; // Monitor for incoming data
+	event.events = mask;
 
 	if (epoll_ctl(_epollFd, EPOLL_CTL_ADD, fd, &event) == -1) {
-		std::cerr << "Error adding fd/socket to epoll: " << strerror(errno) << std::endl;
-		exit(EXIT_FAILURE);
+		close();
+		DEBUG_PRINT("Error adding fd/socket to epoll: ", strerror(errno));
+		throw std::runtime_error("Failed to add fd to epoll");
 	}
 }
 
 void EpollManager::removeFromEpoll(int fd) {
-	if (epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr) == -1) {
-		std::cerr << "Error removing fd/socket from epoll: " << strerror(errno) << std::endl;
-		exit(EXIT_FAILURE);
-	}
+	epoll_ctl(_epollFd, EPOLL_CTL_DEL, fd, nullptr);
 }
 
-std::vector<struct epoll_event> EpollManager::waitForEvents() {
+void EpollManager::modifyEpoll(int fd, struct epoll_event &event) {
+	epoll_ctl(_epollFd, EPOLL_CTL_MOD, fd, &event);
+}
+
+std::vector<struct epoll_event> EpollManager::waitForEvents(int timeout) {
 	// Define the maximum number of events to be returned by a single epoll_wait call
 	const int MAX_EVENTS = 10;
 
@@ -46,12 +51,11 @@ std::vector<struct epoll_event> EpollManager::waitForEvents() {
 	std::vector<struct epoll_event> events(MAX_EVENTS);
 
 	// Wait for events on the epoll file descriptor
-	int numEvents = epoll_wait(_epollFd, events.data(), MAX_EVENTS, -1);
+	int numEvents = epoll_wait(_epollFd, events.data(), MAX_EVENTS, timeout);
 	if (numEvents == -1) {
 		// Handle error
-		std::cerr << "Error in epoll_wait: " << strerror(errno) << std::endl;
+		DEBUG_PRINT("Error in epoll_wait: ", strerror(errno));
 		throw std::runtime_error("epoll_wait failed");
-		exit(EXIT_FAILURE);
 	}
 
 	// Resize the vector to the actual number of events

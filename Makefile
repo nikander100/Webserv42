@@ -10,11 +10,11 @@ SRCS := Socket/Socket.cpp \
 		Parser/Parse.cpp \
 		EpollManager/EpollManager.cpp \
 		ServerManager/ServerManager.cpp \
-		HttpResponse.cpp \
-		HttpRequest.cpp \
 		main.cpp \
-		utils.cpp \
 		Location/Location.cpp \
+		HTTP/Request.cpp \
+		HTTP/Response.cpp \
+		CGI/CgiHandler.cpp 
 
 SRCS := $(addprefix $(SRCS_DIR)/,$(SRCS))
 
@@ -25,7 +25,8 @@ INC_DIR := includes/
 INC_SUBDIRS := $(shell find $(SRCS_DIR) -type d)
 
 CXX := g++
-CXXFLAGS := -Wall -Werror -Wextra -std=c++20 -g -x c++
+CXXCODAMFLAGS = -Wall -Werror -Wextra 
+CXXFLAGS := -std=c++20 -g -x c++ # $(CXXCODAMFLAGS)
 CPPFLAGS := -I$(INC_DIR) $(addprefix -I, $(INC_SUBDIRS))
 
 # gets all the .hpp files to check for changes and recompile affected files

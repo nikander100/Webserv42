@@ -1,18 +1,20 @@
 #include "Server.hpp"
+#include "Client.hpp"
+#include "Response.hpp"
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoindex(false) {
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false), _stop(false) {
 }
 
 Server::~Server() {
-	_socket.close();
+	stop();
 }
 
 // Server Block: server { ... }
 // Takes a std::string from the parser should be:
 // [server_name localhost;]
-void Server::setServerName(std::string &server_name) {
+void Server::setServerName(std::string &server_name) { // todo possibly make only a-zA-Z0-9
 	checkInput(server_name);
 	_serverName = server_name;
 }
@@ -102,10 +104,14 @@ std::string Server::getRoot() const {
 void Server::setClientMaxBodySize(std::string &client_max_body_size) {
 	checkInput(client_max_body_size);
 	try {
-		_clientMaxBodySize = std::stoul(client_max_body_size);
-	} catch (const std::invalid_argument &e){
+		size_t pos;
+		_clientMaxBodySize = std::stoul(client_max_body_size, &pos);
+		if (pos != client_max_body_size.length()) {
+			throw std::invalid_argument("Wrong syntax: Invalid characters in clientMaxBodySize");
+		}
+	} catch (const std::invalid_argument &e) {
 		throw Error("Wrong syntax: clientMaxBodySize");
-	} catch (std::out_of_range &e) {
+	} catch (const std::out_of_range &e) {
 		throw Error("Wrong syntax: clientMaxBodySize");
 	}
 }
@@ -136,11 +142,11 @@ void Server::setAutoIndex(std::string& autoindex) {
 		throw std::runtime_error("Wrong syntax: autoindex must be either 'on' or 'off'");
 	}
 
-	_autoindex = (autoindex == "on") ? true : false;
+	_autoIndex = (autoindex == "on") ? true : false;
 }
 
 std::string Server::getAutoIndex() const {
-	return _autoindex ? "on" : "off";
+	return _autoIndex ? "on" : "off";
 }
 
 int Server::getListenFd() const {
@@ -167,14 +173,14 @@ void Server::setErrorPages(const std::vector<std::string> &error_pages) {
 		if (error_keyword != "error_page") {
 			throw Error("Invalid keyword in error page: " + page);
 		}
-		HttpStatusCodes code = static_cast<HttpStatusCodes>(std::stoi(status_code));
+		HTTP::StatusCode::Code code = static_cast<HTTP::StatusCode::Code>(std::stoi(status_code));
 		setErrorPage(code, path);
 	}
 }
 
 // set a specific error page
-void Server::setErrorPage(HttpStatusCodes key, std::string path) {
-	if (key < HttpStatusCodes::CONTINUE || key > HttpStatusCodes::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
+void Server::setErrorPage(HTTP::StatusCode::Code key, std::string path) {
+	if (key < HTTP::StatusCode::Code::CONTINUE || key > HTTP::StatusCode::Code::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
 
@@ -192,7 +198,7 @@ void Server::setErrorPage(HttpStatusCodes key, std::string path) {
 
 }
 
-const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() const {
+const std::unordered_map<HTTP::StatusCode::Code, std::string> &Server::getErrorPages() const {
 	return _errorPages;
 }
 
@@ -204,15 +210,17 @@ const std::unordered_map<HttpStatusCodes, std::string> &Server::getErrorPages() 
 //     // Handle custom page
 // }
 // returns either the path to the custom error page or the default internal error page
-std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
+std::pair<bool, std::string> Server::getErrorPage(HTTP::StatusCode::Code key) {
 	// Check if a custom error page has been set for this status code
 	if (_errorPages.count(key) > 0) {
-		return {false, _errorPages.at(key)};
+		if (!_errorPages.at(key).empty()) {
+			return {false, _errorPages.at(key)};
+		}
 	}
 
 	// If not, check if the status code has an internal page in BuiltinErrorPages.hpp
-	if (BuiltinErrorPages::isInternalPage(key)) {
-		return {true, BuiltinErrorPages::getInternalPage(key)};
+	if (HTTP::BuiltinErrorPages::isInternalPage(key)) {
+		return {true, HTTP::BuiltinErrorPages::getInternalPage(key)};
 	}
 	
 	throw std::invalid_argument("Error page not found for status code: " + std::to_string(static_cast<int>(key)));
@@ -233,7 +241,7 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 
 // Location Block: location { ... }
 // Takes a std::String and Vector of strings std::vector<std::string> from the parser should be:
-// std:string path[/subfolder] std::vector<std::string> {
+// std:string [path /subfolder] std::vector<std::string> {
 // [root ./;]
 // [allow_methods GET POST DELETE;]
 // [autoindex off;]
@@ -244,13 +252,13 @@ std::pair<bool, std::string> Server::getErrorPage(HttpStatusCodes key) {
 // [alias google.com/;]
 // [client_max_body_size 1024;]
 // }
-void Server::setLocation(const std::string &path, std::vector<std::string> &parsedLocation) {
+void Server::setLocation(std::string &path, std::vector<std::string> &parsedLocation) {
 	Location newLocation;
 	std::vector<Method> methods;
 	std::vector<std::pair<std::string, std::string>> cgiPathExtension;
 
 	std::regex rootRegex(R"(root\s(.+);)");
-	std::regex methodRegex(R"(allow_methods\s+((GET|POST|PUT|HEAD|DELETE)\s*)+;)");
+	std::regex methodRegex(R"(allow_methods\s+((?:GET|POST|PUT|HEAD|DELETE)(?:\s+(?:GET|POST|PUT|HEAD|DELETE))*);)"); // this works!
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
 	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
@@ -260,6 +268,7 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
 			// std::cout << cgiExt.first << "		: what??\n"; //THIS ONE NEEDS TO BE GONE!!!-------------------------------------------------------------------------------------------------
 
+	checkInput(path);
 	newLocation.setPath(path);
 	
 	for (const auto &line : parsedLocation) {
@@ -318,7 +327,7 @@ void Server::setLocation(const std::string &path, std::vector<std::string> &pars
 				}
 			}
 		} else {
-			throw std::runtime_error("Parametr in a location is invalid");
+			throw std::runtime_error("Parameter in a location is invalid");
 		}
 	}
 
@@ -395,7 +404,7 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 	const std::string path = location.getPath();
 	
 	if (path == "/cgi-bin") {
-		const auto &cgiPathExtension = location.getCgiPathExtension();
+		const auto &cgiPathExtension = location.getCgiPathExtensions();
 		if (cgiPathExtension.empty() || location.getIndex().empty()) {
 			return CgiValidation::FAILED_CGI_VALIDATION;
 		}
@@ -469,16 +478,26 @@ void Server::setupServer() {
 
 		_socket.initialize(AF_INET, SOCK_STREAM, 0, SOL_SOCKET, SO_REUSEADDR, SOMAXCONN, _host, _port);
 		// Add server socket to epoll
-		EpollManager::getInstance().addToEpoll(_socket.getFd());
+		EpollManager::getInstance().addToEpoll(_socket.getFd(), EPOLLIN);
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, "Server::setupServer: " << e.what());
 		exit(EXIT_FAILURE);
 	}
 }
 
-bool Server::handlesClient(const int &client_fd) {
+void Server::stop() {
+	_stop = true;
 	for (auto &client : _clients) {
-			if (client->getFd() == client_fd) {
+		EpollManager::getInstance().removeFromEpoll(client->getFd());
+		client->close();
+	}
+	EpollManager::getInstance().removeFromEpoll(_socket.getFd());
+	_socket.close();
+}
+
+bool Server::handlesClient(struct epoll_event &event) {
+	for (auto &client : _clients) {
+			if (client->getFd() == event.data.fd) {
 				return true;
 			}
 		}
@@ -488,26 +507,32 @@ bool Server::handlesClient(const int &client_fd) {
 // creates client socket and adds it to epoll using the epollmanager then adds it to client vector.
 
 void Server::acceptNewConnection() {
+	if (_stop) {
+		return;
+	}
 	try {
 		// Accept a new client connection and create a Client
-		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept());
+		std::unique_ptr<Client> newClient = std::make_unique<Client>(_socket.accept(), *this);
 
 		// Get the client's file descriptor before moving the client
 		int ClientFd = newClient->getFd();
 
+		// update the last request time
+		newClient->updateTime();
+
 		// Add the new client to the list of clients
-		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr));
+		DEBUG_PRINT(MAGENTA, "New client connected: " << inet_ntoa(newClient->getAddress().sin_addr) << ":" << newClient->getFd());
 		_clients.push_back(std::move(newClient));
 
 		// Add client socket to epoll
-		EpollManager::getInstance().addToEpoll(ClientFd);
+		EpollManager::getInstance().addToEpoll(ClientFd, EPOLLIN | EPOLLRDHUP); //| EPOLLET
 	} catch (const std::runtime_error& e) {
-		std::cerr << e.what() << std::endl;
+		DEBUG_PRINT(RED, "Server::acceptNewConnection: " << e.what());
 	}
 }
 
 // returns a reference to the client object with the given fd.
-Client &Server::_getClient(const int &client_fd) {
+Client &Server::getClient(const int &client_fd) {
 	for (auto &client : _clients) {
 		if (client->getFd() == client_fd) {
 			return *client;
@@ -516,7 +541,8 @@ Client &Server::_getClient(const int &client_fd) {
 	throw std::runtime_error("Client not found");
 }
 
-void Server::_removeClient(int client_fd) {
+void Server::removeClient(int client_fd) {
+	DEBUG_PRINT(RED, "Client removed: " << client_fd);
 	_clients.erase(
 		std::remove_if(
 			_clients.begin(), _clients.end(),
@@ -527,52 +553,90 @@ void Server::_removeClient(int client_fd) {
 	);
 }
 
-void Server::handleRequest(const int &client_fd) {
-	// Handle requests from clients
-	HttpResponse responseGenerator;
-	std::string responseContent;
-	Client& client = _getClient(client_fd);
-
-	DEBUG_PRINT(MAGENTA, "Handling request from client: " << inet_ntoa(client.getAddress().sin_addr));
-
+void Server::handleEpollOut(struct epoll_event &event) {
 	try {
-		// Read data from client socket
+		Client& client = getClient(event.data.fd);
+		client.generateResponse(); //TODO handle cgi state and handle accordingly.. and implement checks further.
+
+		client.send();
+
+		if (!client.keepAlive()) {
+			EpollManager::getInstance().removeFromEpoll(client.getFd());
+			client.close();
+			removeClient(client.getFd());
+		} else {
+			// client.clear();
+			// set event to epollin.
+			event.events = EPOLLIN;
+			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
+		}
+	} catch (const std::runtime_error& e) {
+		DEBUG_PRINT(RED,"Server::handleEpollOut: " << e.what());
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
+	}
+}
+
+void Server::handleEpollIn(struct epoll_event &event) {
+	try {
+		Client& client = getClient(event.data.fd);
+
 		client.recv();
 
-		// Process request and generate response
-		responseGenerator = HttpResponse(client.getRequest()); //rename to repsonse?
-		responseGenerator.buildResponse();
-		responseContent = responseGenerator.getHeader();
-		if (responseContent.empty()) { // TODO temp check to be changed
-			std::cerr << "Error generating response." << std::endl;
-			throw std::runtime_error("Error generating response.");
-			return;
+		if (client.requestState()) {
+			// TODO set epoll state correctly.
+			event.events = EPOLLOUT;
+			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
-		responseContent.append(responseGenerator.getBody(), responseGenerator.getBodyLength());
-
-		// Send response to client
-		client.send(responseContent);
-	} 
-	catch (const std::runtime_error& e) {
-		std::cerr << "Error reading from client socket: " << e.what() << std::endl;
+	} catch (const std::runtime_error& e) {
+		DEBUG_PRINT(RED << e.what());
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
 	}
+}
 
-	// Check if keep-alive is false before closing the connection
-	// TODO client.requestError() might not have to be checked here.
-	if (!client.keepAlive() || client.requestError() || responseGenerator.getErrorCode()){
-		// Remove clientFd from epoll
-		EpollManager::getInstance().removeFromEpoll(client_fd);
-
-		// Close connection
-		client.close();
-
-		// Remove client from list(vector) of clients
-		_removeClient(client_fd);
-	} else {
-		// Clear the request object for the next request
-		client.clearRequest();
+void Server::handleEvent(struct epoll_event &event) {
+	try {
+		if (event.events & EPOLLRDHUP) {
+			EpollManager::getInstance().removeFromEpoll(event.data.fd);
+			getClient(event.data.fd).close();
+			removeClient(event.data.fd);
+		} else if (event.events & EPOLLOUT){
+			handleEpollOut(event); // Handle Response.
+		} else if (event.events & EPOLLIN) {
+			handleEpollIn(event); // Handle Request.
+		} 
+	} catch (const std::runtime_error& e) { // TODO test with client close and check if it works.
+		// EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		// removeClient(event.data.fd);
+		DEBUG_PRINT(RED, "Server::handleEvent: " << e.what());
 	}
-	// TODO possibly move the cleanup into a RAII class that will handle the cleanup of the client object and the removal of the client from the epoll.
+}
+
+void Server::checkClientTimeouts() {
+	// Get the current time using a steady clock to ensure consistent time intervals
+	auto now = std::chrono::steady_clock::now();
+
+	// Iterate through the list of clients
+	for (auto it = _clients.begin(); it != _clients.end(); ) {
+		// Dereference the unique pointer to access the client object
+		auto &client = **it;
+
+		// Check if the time elapsed since the client's last request is greater than the timeout value
+		auto lastRequestTime = client.getLastRequestTime();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
+
+		DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
+		if (duration > CONNECTION_TIMEOUT) {
+			DEBUG_PRINT(BLUE, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
+			it = _clients.erase(it);
+
+		} else {
+			// If the client has not timed out, move to the next client
+			++it;
+		}
+	}
+}
 
 /*
 ** -----------------------------------------------
@@ -580,7 +644,7 @@ void Server::handleRequest(const int &client_fd) {
 ** =			Server Logic Functions			 =
 ** -----------------------------------------------
 */
-}
+
 
 
 std::ostream	&operator<<(std::ostream &o, Server const &x)

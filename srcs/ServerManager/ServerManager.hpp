@@ -23,7 +23,9 @@ public:
 
 	// Public member functions
 	void setupServers();
-	void startServers();
+	void start();
+	void stop(void);
+    void pause(void);
 
 private:
 	/* 
@@ -32,9 +34,12 @@ private:
 	*/
 	std::vector<std::unique_ptr<Server>> _servers;
 
+	bool _running;
+
 	// Private member functions
 	// void _acceptNewConnection(Server &);
 	// void _handleRequest(const int &fd);
-	bool _checkServer(const int &fd);
-	void _handleEvent(const struct epoll_event &event);
+	void processEvents(std::vector<struct epoll_event>& events);
+	void checkClientTimeouts();
+	void assignToResponsibleServer(struct epoll_event &event);
 };

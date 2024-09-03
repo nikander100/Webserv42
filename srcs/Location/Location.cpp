@@ -109,12 +109,27 @@ const std::string &Location::getAlias() const {
 	return _alias;
 }
 
-const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtension() const {
+const std::vector<std::pair<std::string, std::string>> &Location::getCgiPathExtensions() const {
 	return _cgiPathExtension;
 }
 
 const unsigned long &Location::getMaxBodySize() const {
 	return _clientMaxBodySize;
+}
+
+
+bool Location::isCgiPath() const {
+	// Check if the path contains "cgi-bin" or matches any known CGI extensions
+	if (_path.find("cgi-bin") != std::string::npos) {
+		return true;
+	}
+	// not needed currently as multiple cgi -bin locations are not implemented
+	// for (const auto& cgiExtension : _cgiPathExtension) {
+	// 	if (_path.find(cgiExtension.first) != std::string::npos) {
+	// 		return true;
+	// 	}
+	// }
+	return false;
 }
 
 std::ostream	&operator<<(std::ostream &o, Location const &x)

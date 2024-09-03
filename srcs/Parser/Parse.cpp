@@ -121,15 +121,15 @@ void	Parse::printServers()
 	}
 }
 
-HttpStatusCodes	extractErrorInt(std::string& str)
+HTTP::StatusCode::Code	extractErrorInt(std::string& str)
 {
 	int	status = std::stoi(str);
 	
-	for (int code = static_cast<int>(HttpStatusCodes::CONTINUE); code <= static_cast<int>(HttpStatusCodes::LAST); ++code) {
+	for (int code = static_cast<int>(HTTP::StatusCode::Code::CONTINUE); code <= static_cast<int>(HTTP::StatusCode::Code::LAST); ++code) {
 		if (status == code)
-			return (static_cast<HttpStatusCodes>(status));
+			return (static_cast<HTTP::StatusCode::Code>(status));
 	}
-	return (static_cast<HttpStatusCodes>(-1));
+	return (static_cast<HTTP::StatusCode::Code>(-1));
 }
 
 std::string	extractPath(const std::string& str, std::string delstart, std::string delend)
@@ -205,7 +205,7 @@ void Parse::setServers() {
                 server->setIndex(_setServerString);
 			} else if (str.find("error_page") != std::string::npos) {
 				std::string error_page = str.substr(str.find("error_page") + 10);
-				HttpStatusCodes status = extractErrorInt(error_page);
+				HTTP::StatusCode::Code status = extractErrorInt(error_page);
 				std::string temp = extractPath(error_page, "error_pages/", ";");
                 server->setErrorPage(status, temp);
 			} else if (str.find("location") != std::string::npos){ 

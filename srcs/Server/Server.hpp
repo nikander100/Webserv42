@@ -1,14 +1,15 @@
 #pragma once
 #include "Webserv.hpp"
 
-#include "HttpResponse.hpp"
 #include "EpollManager.hpp"
 #include "ServerSocket.hpp"
-#include "Client.hpp"
 #include "Location.hpp"
+
 
 #include "Method.hpp"
 
+class Client;
+class HttpResponse;
 class Server {
 public:
 	Server(void);
@@ -56,28 +57,30 @@ public:
 	int getListenFd(void) const;
 
 	// Accessors for the 'errorPages' member variable.
-	const std::unordered_map<HttpStatusCodes, std::string> &getErrorPages(void) const;
-	std::pair<bool, std::string> getErrorPage(HttpStatusCodes key);
+	const std::unordered_map<HTTP::StatusCode::Code, std::string> &getErrorPages(void) const;
+	std::pair<bool, std::string> getErrorPage(HTTP::StatusCode::Code key);
 	void setErrorPages(const std::vector<std::string> &error_pages);
-	void setErrorPage(HttpStatusCodes key, std::string path);
+	void setErrorPage(HTTP::StatusCode::Code key, std::string path);
 
 	// Accessors for the 'locations' member variable.
 	const std::unordered_map<std::string, Location> &getLocations(void);
 	const Location &getLocation(const std::string &path);
-	void setLocation(const std::string &path, std::vector<std::string> &location);
+	void setLocation(std::string &path, std::vector<std::string> &location);
 
 	// Accessors for the 'serverAddress' member variable.
 	const sockaddr_in getServerAddress() const;
 	// void setServerAddress(struct sockaddr_in serveraddress); possibly not needed.
 
-
-	void run();
 	//splitservernewfunc
 	void setupServer();
-	bool handlesClient(const int &clientFd);
+	bool handlesClient(struct epoll_event &event);
 	void acceptNewConnection();
-	void handleRequest(const int& clientFd);
+	void handleEvent(struct epoll_event &event);
+	void handleEpollOut(struct epoll_event &event);
+	void handleEpollIn(struct epoll_event &event);
+	void checkClientTimeouts();
 
+	void stop();
 
 	class Error : public std::exception {
 		public:
@@ -98,18 +101,19 @@ private:
 	std::string _root;
 	unsigned long _clientMaxBodySize;
 	std::string _index;
-	bool _autoindex;
-	std::unordered_map<HttpStatusCodes, std::string> _errorPages;
+	bool _autoIndex;
+	std::unordered_map<HTTP::StatusCode::Code, std::string> _errorPages;
 	std::unordered_map<std::string, Location> _locations;
 	
 	ServerSocket _socket; // TODO make this a unique_ptr
 
 	static void checkInput(std::string &inputcheck);
+	bool _stop;
 
 	//newcodesplitsbs
 	std::vector<std::unique_ptr<Client>> _clients;
-	Client &_getClient(const int &clientFd);
-	void _removeClient(int clientFd);
+	Client &getClient(const int &clientFd);
+	void removeClient(int clientFd);
 
 	//newcodelocation&errorpages
 	enum class CgiValidation {

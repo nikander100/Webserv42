@@ -1,16 +1,16 @@
-#include "../includes/HttpRequest.hpp"
-#include "Method.hpp"
+#include "Request.hpp"
 
-
-HttpRequest::HttpRequest() : _state(Start), _method(Method::UNKNOWN), _errorCode(0), _verMajor(0), _verMinor(0),
-_contentLength(0), _chunkSize(0), _headers(), _body() {
+HttpRequest::HttpRequest() : 
+	_state(Start), _method(Method::UNKNOWN), _statusCode(HTTP::StatusCode::Code::NONE), _serverName(""),
+	_path(""), _query(""), _fragment(""), _verMajor(0), _verMinor(0), _contentLength(0),
+	_chunkSize(0), _headers(), _body(""), _boundary(""){
 }
 
 HttpRequest::~HttpRequest() {
 }
 
 bool HttpRequest::parsingComplete() const {
-	return _state == Complete;
+	return _state == Complete || _statusCode != HTTP::StatusCode::Code::NONE;
 }
 // can possibly be removed
 // bool HttpRequest::parsingComplete() const {
@@ -23,15 +23,36 @@ bool HttpRequest::isValidUri(const std::string &uri) {
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
 		"0123456789"
-		"-._~:/?#[]@!$&'()*+,;=";
+		"-._~:/?#[]@!$&'()*+,;=%"; // Added '%' to allowed characters
 
-	for (char c : uri) {
+	for (size_t i = 0; i < uri.length(); ++i) {
+		char c = uri[i];
 		if (allowedChars.find(c) == std::string::npos) {
-			return false;
+			// Check for percent-encoded characters
+			if (c == '%' && i + 2 < uri.length() && 
+				isxdigit(uri[i + 1]) && isxdigit(uri[i + 2])) {
+				i += 2; // Skip the next two hex digits
+			} else {
+				return false;
+			}
 		}
 	}
 
 	return true;
+}
+
+std::string HttpRequest::decodeUri(const std::string &uri) {
+	std::ostringstream decoded;
+	for (size_t i = 0; i < uri.length(); ++i) {
+		if (uri[i] == '%' && i + 2 < uri.length() && isxdigit(uri[i + 1]) && isxdigit(uri[i + 2])) {
+			std::string hex = uri.substr(i + 1, 2);
+			decoded << static_cast<char>(std::stoi(hex, nullptr, 16));
+			i += 2;
+		} else {
+			decoded << uri[i];
+		}
+	}
+	return decoded.str();
 }
 
 // checks http header according to RFC 2616 (HTTP/1.1) tokens are defined in RFC 2616 section 2.2
@@ -60,16 +81,23 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 
 	if (std::regex_match(line, match, pattern)) {
 		_method = stringToMethod(match[1]);
-		_path = match[3];
+		// validate path more like RFC for improved security. (not required for the project but easy to implement)
+		if (!isValidUri(match[3])) {
+			return false;
+		}
+		_path = decodeUri(match[3]);
 		_query = match[4].length() > 1 ? match.str(4).substr(1) : ""; // remove leading '?'
 		_fragment = match[5].length() > 1 ? match.str(5).substr(1) : ""; // remove leading '#'
 		_verMajor = std::stoi(match[6]);
 		_verMinor = std::stoi(match[7]);
 
-		// validate path more like RFC for improved security. (not required for the project but easy to implement)
-		if (!isValidUri(_path)) {
+		// Check the combined length of _path and _query
+		if (_path.length() + _query.length() > MAX_URI_LENGTH) {
+			_statusCode = HTTP::StatusCode::Code::URI_TOO_LONG;
 			return false;
 		}
+
+
 		return _method != Method::UNKNOWN;
 	}
 	return false;
@@ -94,7 +122,7 @@ bool HttpRequest::parseHeader(const std::string &line) {
 
 			// validate key
 			if (!isValidToken(key)) {
-				std::cerr << "Invalid header key" << std::endl;
+				DEBUG_PRINT("Invalid header key");
 				return false;
 			}
 
@@ -103,23 +131,59 @@ bool HttpRequest::parseHeader(const std::string &line) {
 			// value.erase(value.find_last_not_of(' ') + 1); // trailing
 
 			_headers[key] = value;
-
-			// possibly move this to a separate function/state..
-			if (key == "content-length") {
-				try {
-					_contentLength = std::stoul(value);
-				} catch (const std::invalid_argument& ia) {
-					std::cerr << "Invalid content-length: " << ia.what() << std::endl;
-					return false;
-				} catch (const std::out_of_range& oor) {
-					std::cerr << "Content-length out of range: " << oor.what() << std::endl;
-					return false;
-				}
-			}
 			return true;
 		}
 	}
 	return false;
+}
+
+bool HttpRequest::handleHeaders(std::istream& stream) {
+	stream.ignore(1); // Skip \r\n
+	if (_headers.find("host") != _headers.end()) {
+		_serverName = _headers["host"];
+	} else {
+		_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+		DEBUG_PRINT("Invalid request: Host header missing");
+		return false;
+	}
+	if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
+		if (_headers.find("content-length") != _headers.end()) {
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+			DEBUG_PRINT("Invalid request: both Transfer-Encoding and Content-Length headers present");
+			return false;
+		}
+		_state = Reading_Chunk_Size;
+	} else if (_headers.find("content-length") != _headers.end()) {
+		try {
+			_contentLength = std::stoul(_headers["content-length"]);
+		} catch (const std::invalid_argument& ia) {
+			DEBUG_PRINT("Invalid content-length: " << ia.what());
+			return false;
+		} catch (const std::out_of_range& oor) {
+			DEBUG_PRINT("Content-length out of range: " << oor.what());
+			return false;
+		}
+		_state = Reading_Body_Data;
+	} else if (_headers.find("content-type") != _headers.end() && _headers["content-type"].find("multipart/form-data") != std::string::npos) {
+		size_t pos = _headers["content-type"].find("boundary=");
+		if (pos != std::string::npos) {
+			_boundary = _headers["content-type"].substr(pos + 9);
+		} else {
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+			DEBUG_PRINT("Invalid request: multipart/form-data boundary missing");
+			return false;
+		}
+		_state = Reading_Body_Data; // Or a specific multipart state if needed
+	} else {
+		// check if request is malformed
+		if (!stream.eof()) {
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+			DEBUG_PRINT("Malformed request");
+			return false;
+		}
+		_state = Complete;
+	}
+	return true;
 }
 
 bool HttpRequest::parseChunkSize(const std::string &line) {
@@ -156,58 +220,43 @@ bool HttpRequest::feed(const std::string &data) {
 		switch (_state) {
 			case Start: {
 				if (!std::getline(stream, line)) {
-					std::cerr << "Failed to read request line" << std::endl;
+					DEBUG_PRINT("Failed to read request line");
 					return false;
-					_errorCode = 1;
+					_statusCode = HTTP::StatusCode::Code::NOT_IMPLEMENTED;
 				}
 
 				if (parseRequestLine(line)) {
 					_state = Method_Line_Parsed;
 				} else {
-					_errorCode = 1;
-					std::cerr << "Invalid request line" << std::endl;
+					if (_statusCode == HTTP::StatusCode::Code::URI_TOO_LONG) {
+						DEBUG_PRINT("URI too long");
+					} else {
+						_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+						DEBUG_PRINT("Invalid request line");
+					}
 					return false;
 				}
 				break;
 			}
 			case Method_Line_Parsed: {
 				if (!std::getline(stream, line)) {
-					_errorCode = 1;
-					std::cerr << "Failed to read request line" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Failed to read request line");
 					return false;
 				}
 
 				if (line == "\r") {
-					// _flagRequestMethodAndHeaderDone = true;
 					_state = Header_Parsed;
 				} else if (!parseHeader(line)) {
-					_errorCode = 1;
-					std::cerr << "Invalid header" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Invalid header");
 					return false;
 				}
 				break;
 			}
 			case Header_Parsed: {
-				stream.ignore(1); // Skip \r\n
-				if (_headers.find("transfer-encoding") != _headers.end() && _headers["transfer-encoding"] == "chunked") {
-					// _flagBody = true;
-					if (_headers.find("content-length") != _headers.end()) {
-						_errorCode = 1;
-						std::cerr << "Invalid request: both Transfer-Encoding and Content-Length headers present" << std::endl;
-						return false;
-					}
-					_state = Reading_Chunk_Size;
-				} else if (_contentLength > 0) {
-					// _flagBody = true;
-					_state = Reading_Body_Data;
-				} else {
-					// check if request is malformed
-					if (!stream.eof()) {
-						_errorCode = 1;
-						std::cerr << "Malformed request" << std::endl;
-						return false;
-					}
-					_state = Complete;
+				if (!handleHeaders(stream)) {
+					return false;
 				}
 				break;
 			}
@@ -215,24 +264,23 @@ bool HttpRequest::feed(const std::string &data) {
 				if (_contentLength > 0 && stream.tellg() + static_cast<std::streamoff>(_contentLength) <= static_cast<std::streamoff>(data.size())) {
 					_body = data.substr(stream.tellg(), _contentLength);
 					stream.seekg(_contentLength, std::ios::cur); // Move the get pointer forward
-					// _flagBodyDone = true;
 					_state = Complete;
 				} else {
-					_errorCode = 1; //TODO: IMPLEMENT ERROR HANDLING FOR THIS NOW JUST HARDCODED FOR IT TO WORK.
-					std::cerr << "Invalid content-length or incomplete body" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Invalid content-length or incomplete body");
 					_state = Complete;
 				}
 				break;
 			}
 			case Reading_Chunk_Size: {
 				if (!std::getline(stream, line)) {
-					_errorCode = 1;
-					std::cerr << "Failed to read chunk size" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Failed to read chunk size");
 					return false;
 				}
 				if (!parseChunkSize(line)) {
-					_errorCode = 1;
-					std::cerr << "Invalid chunk size" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Invalid chunk size");
 					return false;
 				}
 				if (_chunkSize == 0) {
@@ -247,18 +295,17 @@ bool HttpRequest::feed(const std::string &data) {
 					_body.append(data.substr(stream.tellg(), _chunkSize));
 					stream.seekg(_chunkSize, std::ios::cur); // Move the get pointer forward
 					stream.ignore(2); // Skip trailing \r\n
-					// _flagBodyDone = true;
 					_state = Reading_Chunk_Size;
 				} else {
-					_errorCode = 1;
-					std::cerr << "Incomplete chunk data" << std::endl;
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Incomplete chunk data");
 					return false;
 				}
 				break;
 			}
 			default:
-				std::cerr << "Unkown state" << std::endl;
-				_errorCode = 1;
+				_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+				DEBUG_PRINT("Unknown state");
 				return false;
 				// instead of returning set error flag so later can reset the request object.
 					// send bad ... response.
@@ -275,11 +322,15 @@ const Method &HttpRequest::getMethod() const {
 	return _method;
 }
 
-const std::string &HttpRequest::getPath() const {
+const std::string &HttpRequest::getServerName() const {
+	return _serverName;
+}
+
+std::string &HttpRequest::getPath() {
 	return _path;
 }
 
-const std::string &HttpRequest::getQuery() const {
+std::string &HttpRequest::getQuery() {
 	return _query;
 }
 
@@ -288,20 +339,29 @@ const std::string &HttpRequest::getFragment() const {
 }
 
 const std::string &HttpRequest::getHeader(const std::string &key) const {
-	return _headers.at(key); // TODO: possibly vhange this to find and return empty string if not found.
+	auto it = _headers.find(key);
+	if (it != _headers.end()) {
+		return it->second;
+	} else {
+		static const std::string emptyString;
+		return emptyString;
+	}
 }
-// const std::string &HttpRequest::getHeader(const std::string &key) const {
-// 	auto it = _headers.find(key);
-// 	if (it != _headers.end()) {
-// 		return it->second;
-// 	} else {
-// 		static const std::string emptyString;
-// 		return emptyString;
-// 	}
-// }
 
-int HttpRequest::errorCode() const {
-	return _errorCode;
+std::unordered_map<std::string, std::string> HttpRequest::getHeaders() const {
+	return _headers;
+}
+
+const std::string &HttpRequest::getBody() const {
+	return _body;
+}
+
+const std::string &HttpRequest::getBoundary() const {
+	return _boundary;
+}
+
+HTTP::StatusCode::Code HttpRequest::errorCode() const {
+	return _statusCode;
 }
 
 bool HttpRequest::keepAlive() const {
@@ -325,7 +385,8 @@ bool HttpRequest::keepAlive() const {
 void HttpRequest::reset() {
 	_state = Start;
 	_method = Method::UNKNOWN;
-	_errorCode = 0;
+	_statusCode = HTTP::StatusCode::Code::NONE;
+	_serverName.clear();
 	_path.clear();
 	_query.clear();
 	_fragment.clear();
@@ -335,4 +396,5 @@ void HttpRequest::reset() {
 	_chunkSize = 0;
 	_headers.clear();
 	_body.clear();
+	_boundary.clear();
 }

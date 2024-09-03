@@ -35,6 +35,6 @@
 notes.md
 
 #testserverdir
-server_dir*/
+wwwroot/*
 #keepthis in ignore until formated properly...
 docs/HttpReferences.md 
