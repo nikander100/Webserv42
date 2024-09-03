@@ -32,9 +32,9 @@ std::vector<std::vector<std::string>>	Parse::getServersConfig()
 	return (this->_servers_conf);
 }
 
-const std::vector<std::unique_ptr<Server>>& Parse::getServers() const
+std::vector<std::unique_ptr<Server>> Parse::getServers()
 {
-	return (this->_servers);
+	return (std::move(this->_servers));
 }
 
 
@@ -112,12 +112,9 @@ void	Parse::addServersVector()
 
 void	Parse::printServers()
 {
-	for (std::vector<std::string> server : this->_servers_conf)
+	for (auto& ser :_servers)
 	{
-		for (std::string str : server)
-		{
-			std::cout << CYAN << str << RESET << std::endl;
-		}
+		std::cout << *ser;
 	}
 }
 
@@ -143,71 +140,71 @@ std::string	extractPath(const std::string& str, std::string delstart, std::strin
 
 void Parse::handleLocations(std::string lName, Server& server, std::vector<std::string>::const_iterator& it, const std::vector<std::string>& vec)
 {
-    std::string cgiPath, cgiExt;
+	std::string cgiPath, cgiExt;
 
-    for (; it != vec.end(); it++)
-    {
-        std::string str = *it;
-        if (str.find("{") != std::string::npos)
-        {
-            it++;
-            str = *it;
-            while (str.find("}") == std::string::npos)
-            {
-                if (str.find("cgi_path") != std::string::npos)
-                    cgiPath = str;
-                else if (str.find("cgi_ext") != std::string::npos)
-                    cgiExt = str;
-                else
-                    this->_temp.push_back(str);
+	for (; it != vec.end(); it++)
+	{
+		std::string str = *it;
+		if (str.find("{") != std::string::npos)
+		{
+			it++;
+			str = *it;
+			while (str.find("}") == std::string::npos)
+			{
+				if (str.find("cgi_path") != std::string::npos)
+					cgiPath = str;
+				else if (str.find("cgi_ext") != std::string::npos)
+					cgiExt = str;
+				else
+					this->_temp.push_back(str);
 
-                it++;
-                str = *it;
-            }
-            break;
-        }
-    }
-    if (!cgiExt.empty())
-        this->_temp.push_back(cgiExt);
-    if (!cgiPath.empty())
-        this->_temp.push_back(cgiPath);
-    server.setLocation(lName, this->_temp);
-    this->_temp.clear();
+				it++;
+				str = *it;
+			}
+			break;
+		}
+	}
+	if (!cgiExt.empty())
+		this->_temp.push_back(cgiExt);
+	if (!cgiPath.empty())
+		this->_temp.push_back(cgiPath);
+	server.setLocation(lName, this->_temp);
+	this->_temp.clear();
 }
 
 void Parse::setServers() {
-    for (const std::vector<std::string>& vec : this->_servers_conf)
+	for (const std::vector<std::string>& vec : this->_servers_conf)
 	{
-        std::unique_ptr<Server> server = std::make_unique<Server>();
-       
+		std::unique_ptr<Server> server = std::make_unique<Server>();
+	
 		for (auto it = vec.begin(); it != vec.end(); it++)
 		{
 			std::string str = *it;
-            if (str.find("server_name") != std::string::npos) {
-                _setServerString = str.substr(str.find("server_name") + 11);
+			if (str.find("server_name") != std::string::npos) {
+				_setServerString = str.substr(str.find("server_name") + 11);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-                server->setServerName(_setServerString);
-            } else if (str.find("root") != std::string::npos) {
-                _setServerString = str.substr(str.find("root") + 4);
+				server->setServerName(_setServerString);
+			} else if (str.find("root") != std::string::npos) {
+				_setServerString = str.substr(str.find("root") + 4);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-                server->setRoot(_setServerString);
-            } else if (str.find("listen") != std::string::npos) {
-                _setServerString = str.substr(str.find("listen") + 6);
+				server->setRoot(_setServerString);
+			} else if (str.find("listen") != std::string::npos) {
+				_setServerString = str.substr(str.find("listen") + 6);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-                server->setPort(_setServerString);
-            } else if (str.find("client_max_body_size") != std::string::npos) {
+				server->setPort(_setServerString);
+			} else if (str.find("client_max_body_size") != std::string::npos) {
 				_setServerString = str.substr(str.find("client_max_body_size") + 20);
 				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-                server->setClientMaxBodySize(_setServerString);
+				server->setClientMaxBodySize(_setServerString);
 			} else if (str.find("index") != std::string::npos) {
 				_setServerString = str.substr(str.find("index") + 5);
 				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-                server->setIndex(_setServerString);
+				server->setIndex(_setServerString);
 			} else if (str.find("error_page") != std::string::npos) {
 				std::string error_page = str.substr(str.find("error_page") + 10);
 				HTTP::StatusCode::Code status = extractErrorInt(error_page);
 				std::string temp = extractPath(error_page, "error_pages/", ";");
-                server->setErrorPage(status, temp);
+				server->setErrorPage(status, temp);
 			} else if (str.find("location") != std::string::npos){ 
 				std::string temp = extractPath(str, "/", "{");
 				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
@@ -216,9 +213,9 @@ void Parse::setServers() {
 				handleLocations(temp, *server, it, vec);
 			}
 			_setServerString.clear();
-        }
-        _servers.push_back(std::move(server));
-    }
+		}
+		_servers.push_back(std::move(server));
+	}
 	for (auto& s : _servers){
 		Server& ser = *s;
 		std::cout << ser;

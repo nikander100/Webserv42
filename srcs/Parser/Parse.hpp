@@ -18,7 +18,7 @@ public:
 
 	std::vector<std::string>	getRawConfig();
 	std::vector<std::vector<std::string>>	getServersConfig();
-	const std::vector<std::unique_ptr<Server>>& getServers() const;
+	std::vector<std::unique_ptr<Server>> getServers();
 
 
 

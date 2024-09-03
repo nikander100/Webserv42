@@ -268,7 +268,7 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
 			// std::cout << cgiExt.first << "		: what??\n"; //THIS ONE NEEDS TO BE GONE!!!-------------------------------------------------------------------------------------------------
 
-	checkInput(path);
+	// checkInput(path);
 	newLocation.setPath(path);
 	
 	for (const auto &line : parsedLocation) {

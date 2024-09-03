@@ -22,10 +22,10 @@ public:
 	// addServer();
 
 	// Public member functions
-	void setupServers();
+	void setupServers(std::vector<std::unique_ptr<Server>> servers);
 	void start();
 	void stop(void);
-    void pause(void);
+	void pause(void);
 
 private:
 	/* 
