@@ -48,3 +48,5 @@ class Location {
 		unsigned long _clientMaxBodySize;
 
 };
+
+std::ostream	&operator<<(std::ostream &o, Location const &x);

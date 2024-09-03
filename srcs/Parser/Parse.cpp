@@ -2,27 +2,45 @@
 
 Parse::Parse() : _exit(false)
 {
-	std::cout << BLUE << "parse constructor\n" << RESET;
+	// std::cout << BLUE << "parse constructor\n" << RESET;
 }
 
 Parse::~Parse()
 {
-	std::cout << MAGENTA << "parse destructor\n" << RESET;
+	// std::cout << MAGENTA << "parse destructor\n" << RESET;
 }
 
 void	Parse::readfile(char **argv)
 {
 	std::ifstream file(argv[1]);
 	std::string line;
-
 	while (std::getline(file, line))
-		this->raw_conf_file.push_back(line);
+		this->_raw_conf_file.push_back(line);
+	this->checkBalance();
+	this->addServersVector();
+	this->setServers();
 	file.close();
 }
 
+std::vector<std::string>	Parse::getRawConfig()
+{
+	return (this->_raw_conf_file);
+}
+
+std::vector<std::vector<std::string>>	Parse::getServersConfig()
+{
+	return (this->_servers_conf);
+}
+
+const std::vector<std::unique_ptr<Server>>& Parse::getServers() const
+{
+	return (this->_servers);
+}
+
+
 void	Parse::printRawConf()
 {
-	for (std::string str : this->raw_conf_file)
+	for (std::string str : this->_raw_conf_file)
 		std::cout << str << std::endl;
 }
 
@@ -30,7 +48,7 @@ void	Parse::checkBalance()
 {
 	std::stack<char> c;
 
-	for (auto str : this->raw_conf_file)
+	for (auto str : this->_raw_conf_file)
 	{
 		for (auto it = str.begin(); it != str.end(); it++)
 		{
@@ -45,7 +63,7 @@ void	Parse::checkBalance()
 					*it++;
 				if (it == str.end())
 				{
-					std::cout << RED << "unbalanced bruh\n" << RESET;
+					std::cout << RED << "unbalanced\n" << RESET;
 					exit(1);
 				}
 			}
@@ -55,25 +73,17 @@ void	Parse::checkBalance()
 				c.pop();
 			else if (c.empty() && *it == '}')
 			{
-				std::cout << RED << "unbalanced bruh\n" << RESET;
+				std::cout << RED << "unbalanced\n" << RESET;
 				exit(1);
 			}	
 		}
 	}
 	if (!c.empty())
 	{
-		std::cout << RED << "unbalanced bruh\n" << RESET;
+		std::cout << RED << "unbalanced\n" << RESET;
 		exit(1);
 	}
-	std::cout << GREEN << "GOOD\n" << RESET;
-}
-
-void Parse::checkExit()
-{
-	if (!this->_exit)
-		std::cout << "unbalanced brackets, exit program plese\n";
-	else
-		std::cout << "good stuff here, brackets not bad at all :'D \n";
+	std::cout << GREEN << "Balanced config_file\n" << RESET;
 }
 
 void	Parse::addServersVector()
@@ -82,22 +92,21 @@ void	Parse::addServersVector()
 	std::vector<std::string> server;
 
 	i = 1;
-	server.push_back(this->raw_conf_file[0]);
-	while (i < this->raw_conf_file.size())
+	server.push_back(this->_raw_conf_file[0]);
+	while (i < this->_raw_conf_file.size())
 	{
-		if (this->raw_conf_file[i] == "server {")
+		if (this->_raw_conf_file[i] == "server {")
 		{
-			server.push_back(this->raw_conf_file[i]);
+			server.push_back(this->_raw_conf_file[i]);
 			this->_servers_conf.push_back(server);
 			server.clear();
 			i++;
 			continue ;
 		}
-		server.push_back(this->raw_conf_file[i]);
+		server.push_back(this->_raw_conf_file[i]);
 		i++;
 	}
-
-	// server.push_back(this->raw_conf_file[i]);
+	// server.push_back(this->_raw_conf_file[i]);
 	this->_servers_conf.push_back(server);
 }
 
@@ -112,29 +121,106 @@ void	Parse::printServers()
 	}
 }
 
-void	Parse::setServers()
+HttpStatusCodes	extractErrorInt(std::string& str)
 {
-	// std::unique_ptr<Server> testServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
-
-	// size_t	i;
-
-	// i = 0;
-	// while (i < this->_servers_conf.size())
-	// {
-		for (std::vector<std::string> vec : this->_servers_conf)
-		{
-			for (std::string str : vec)
-			{
-				if (str.find("server_name") != std::string::npos)
-				{
-					// server.setServerName(str);
-					std::cout << BRIGHT_BLUE  << str << RESET << std::endl;
-					// std::cout << server.getServerName() << std::endl;
-				}
-			}
-			// _servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
-		}
-	// }
+	int	status = std::stoi(str);
 	
-	// this->_servers_conf
+	for (int code = static_cast<int>(HttpStatusCodes::CONTINUE); code <= static_cast<int>(HttpStatusCodes::LAST); ++code) {
+		if (status == code)
+			return (static_cast<HttpStatusCodes>(status));
+	}
+	return (static_cast<HttpStatusCodes>(-1));
+}
+
+std::string	extractPath(const std::string& str, std::string delstart, std::string delend)
+{
+	size_t start = str.find(delstart);
+	size_t end = str.find(delend);
+	if (start != std::string::npos || end != std::string::npos)
+		return (str.substr(start, end - start));
+	return ("");
+}
+
+void Parse::handleLocations(std::string lName, Server& server, std::vector<std::string>::const_iterator& it, const std::vector<std::string>& vec)
+{
+    std::string cgiPath, cgiExt;
+
+    for (; it != vec.end(); it++)
+    {
+        std::string str = *it;
+        if (str.find("{") != std::string::npos)
+        {
+            it++;
+            str = *it;
+            while (str.find("}") == std::string::npos)
+            {
+                if (str.find("cgi_path") != std::string::npos)
+                    cgiPath = str;
+                else if (str.find("cgi_ext") != std::string::npos)
+                    cgiExt = str;
+                else
+                    this->_temp.push_back(str);
+
+                it++;
+                str = *it;
+            }
+            break;
+        }
+    }
+    if (!cgiExt.empty())
+        this->_temp.push_back(cgiExt);
+    if (!cgiPath.empty())
+        this->_temp.push_back(cgiPath);
+    server.setLocation(lName, this->_temp);
+    this->_temp.clear();
+}
+
+void Parse::setServers() {
+    for (const std::vector<std::string>& vec : this->_servers_conf)
+	{
+        std::unique_ptr<Server> server = std::make_unique<Server>();
+       
+		for (auto it = vec.begin(); it != vec.end(); it++)
+		{
+			std::string str = *it;
+            if (str.find("server_name") != std::string::npos) {
+                _setServerString = str.substr(str.find("server_name") + 11);
+  				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
+                server->setServerName(_setServerString);
+            } else if (str.find("root") != std::string::npos) {
+                _setServerString = str.substr(str.find("root") + 4);
+  				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
+                server->setRoot(_setServerString);
+            } else if (str.find("listen") != std::string::npos) {
+                _setServerString = str.substr(str.find("listen") + 6);
+  				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
+                server->setPort(_setServerString);
+            } else if (str.find("client_max_body_size") != std::string::npos) {
+				_setServerString = str.substr(str.find("client_max_body_size") + 20);
+				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
+                server->setClientMaxBodySize(_setServerString);
+			} else if (str.find("index") != std::string::npos) {
+				_setServerString = str.substr(str.find("index") + 5);
+				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
+                server->setIndex(_setServerString);
+			} else if (str.find("error_page") != std::string::npos) {
+				std::string error_page = str.substr(str.find("error_page") + 10);
+				HttpStatusCodes status = extractErrorInt(error_page);
+				std::string temp = extractPath(error_page, "error_pages/", ";");
+                server->setErrorPage(status, temp);
+			} else if (str.find("location") != std::string::npos){ 
+				std::string temp = extractPath(str, "/", "{");
+				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
+				if (!std::filesystem::exists("."+temp))
+					throw std::invalid_argument("invalid Location\n" + temp + "\n");
+				handleLocations(temp, *server, it, vec);
+			}
+			_setServerString.clear();
+        }
+        _servers.push_back(std::move(server));
+    }
+	for (auto& s : _servers){
+		Server& ser = *s;
+		std::cout << ser;
+	}
 }

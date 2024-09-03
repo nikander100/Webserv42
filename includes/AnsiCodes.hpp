@@ -24,4 +24,6 @@
 #define BRIGHT_CYAN   "\033[96m"
 #define BRIGHT_WHITE  "\033[97m"
 
+#define LARGELINE "________________________________________________________________________________________"
+
 #endif // ANSICODES_HPPd::string BRIGHT_YELLOW = "\033[93m";

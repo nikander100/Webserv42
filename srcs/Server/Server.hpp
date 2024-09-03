@@ -129,3 +129,6 @@ private:
 
 	// exception class that can make message like _msg = "base: " + errormessage
 };
+
+
+std::ostream	&operator<<(std::ostream &o, Server const &x);

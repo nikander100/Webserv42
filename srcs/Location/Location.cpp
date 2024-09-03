@@ -117,3 +117,15 @@ const unsigned long &Location::getMaxBodySize() const {
 	return _clientMaxBodySize;
 }
 
+std::ostream	&operator<<(std::ostream &o, Location const &x)
+{
+	o 	<< BOLD << YELLOW << "\nLocation		" << x.getPath()
+		<< "\nAlias		:			" << x.getAlias() 
+		<< "\nAuto Index	:	" <<	x.getAutoindex()
+		<< "\nIndex		:	" <<	x.getIndex()
+		<< "\nMax Body Size	:	" << x.getMaxBodySize()
+		<< "\nRoot		:	" << x.getRoot()
+		<< "\nReturn		:	" <<	x.getReturn() << "\n" << RESET;
+	
+	return (o);
+}
