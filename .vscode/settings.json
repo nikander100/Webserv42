@@ -119,6 +119,8 @@
 	"cinttypes": "cpp",
 	"typeinfo": "cpp",
 	"semaphore": "cpp",
-	"codecvt": "cpp"
+	"codecvt": "cpp",
+	"iomanip": "cpp",
+	"csignal": "cpp"
 }
 }

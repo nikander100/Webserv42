@@ -1,10 +1,12 @@
 #include "Client.hpp"
 
-Client::Client(std::unique_ptr<ClientSocket> socket)
-	: _socket(std::move(socket)), _httpRequestLength(0) {
+Client::Client(std::unique_ptr<ClientSocket> socket, Server &server)
+	: _socket(std::move(socket)), _server(server), _request() {
+		response = std::make_unique<HttpResponse>(server, _socket->getFd());
 }
 
 Client::~Client() {
+	DEBUG_PRINT(RED, "Client destroyed: " << inet_ntoa(getAddress().sin_addr) << ":" << getFd());
 	_socket->close();
 }
 
@@ -16,8 +18,16 @@ struct sockaddr_in Client::getAddress() const {
 	return _socket->getAddress();
 }
 
-void Client::send(const std::string &data) {
-	_socket->send(data);
+void Client::send() {
+	try {
+		_socket->send(response->getResponse());
+	} catch (const std::runtime_error &e) {
+		close();
+		throw;
+	}
+	updateTime();
+	// clear(); // TODO maybe not needed only clear rersponse?
+	clearResponse();
 }
 
 void Client::recv() {
@@ -25,10 +35,12 @@ void Client::recv() {
 	if (data.empty()) {
 		throw std::runtime_error("Client disconnected");
 	}
+	clearRequest();
 	feed(data);
 }
 
 void Client::close() {
+	DEBUG_PRINT(RED, "Client closed: " << inet_ntoa(getAddress().sin_addr) << ":" << getFd());
 	_socket->close();
 }
 
@@ -44,7 +56,7 @@ bool Client::requestState() const {
 	return _request.parsingComplete();
 }
 
-bool Client::requestError() const {
+HTTP::StatusCode::Code Client::requestError() const {
 	return _request.errorCode();
 }
 
@@ -54,4 +66,26 @@ void Client::clearRequest() {
 
 bool Client::keepAlive() const {
 	return _request.keepAlive();
+}
+
+void Client::generateResponse() {
+	response->setRequest(_request);
+	response->buildResponse();
+}
+
+void Client::clearResponse() {
+	response->reset();
+}
+
+void Client::clear() {
+	clearRequest();
+	clearResponse();
+}
+
+void Client::updateTime() {
+	_lastRequestTime = std::chrono::_V2::steady_clock::now();
+}
+
+const std::chrono::_V2::steady_clock::time_point &Client::getLastRequestTime() const {
+	return _lastRequestTime;
 }

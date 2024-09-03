@@ -10,6 +10,10 @@
 #include <fcntl.h>
 #include <fstream>
 #include <filesystem>
+#include <memory>
+#include <optional> //unused for now
+#include <dirent.h>
+#include <csignal>
 
 
 /* STL Containers */
@@ -33,25 +37,27 @@
 # include <sys/wait.h>
 # include <sys/stat.h>
 # include <sys/time.h>
+# include <chrono>
 
 
 // Custom Defines
 
-constexpr size_t CONNECTION_TIMEOUT = 60; // 1 minute.
+constexpr int64_t CONNECTION_TIMEOUT = 60; // 1 minute.
 
+// Default value for the maximum size of the request body.
 // constexpr size_t MAX_CONTENT_SIZE = 33554432; // 32MB
 constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
 
+// Maximum length of a URI.
 constexpr size_t MAX_URI_LENGTH = 4096;
 
-constexpr uint16_t TEST_PORT = 8081;
+constexpr uint16_t TEST_PORT = 8727;
 
+// Includes required for the servermanager
 #include "AnsiCodes.hpp"
 #include "Debug.hpp"
-
-// #include "Method.hpp"
 #include "BuiltinErrorPages.hpp"
-#include "HttpStatusCodes.hpp"
+#include "StatusCodes.hpp"
 #include "FileUtils.hpp"
 
 //part of reading config file

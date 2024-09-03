@@ -2,12 +2,17 @@
 
 #include "Webserv.hpp"
 #include "ClientSocket.hpp"
-#include "HttpRequest.hpp"
+#include "Request.hpp"
+#include "StatusCodes.hpp"
+#include "Response.hpp"
+#include "Server.hpp"
+
+class Server;
 
 class Client {
 	public:
 
-		Client(std::unique_ptr<ClientSocket> socket);
+		Client(std::unique_ptr<ClientSocket> socket, Server &server);
 		virtual ~Client();
 		Client(const Client &) = delete;
 		Client &operator=(const Client &) = delete;
@@ -17,20 +22,31 @@ class Client {
 		struct sockaddr_in getAddress() const;
 
 		// socket function wrappers
-		void send(const std::string &data);
+		void send();
 		void recv();
 		void close();
 
-		// request funcs
+		// request wrapper funcs
 		HttpRequest &getRequest();
-		void feed(const std::string &data); // can be made private
+		void feed(const std::string &data);
 		bool requestState() const;
-		bool requestError() const;
+		HTTP::StatusCode::Code requestError() const;
 		void clearRequest();
 		bool keepAlive() const;
+
+		// response wrapper funcs
+		void generateResponse();
+		void clearResponse();
+
+		// general funcs
+		void clear();
+		const std::chrono::steady_clock::time_point &getLastRequestTime() const;
+		void updateTime();
+		std::unique_ptr<HttpResponse> response;
 	
 	private:
 		std::unique_ptr<ClientSocket> _socket;
+		Server &_server;
 		HttpRequest _request;
-		size_t _httpRequestLength;
+		std::chrono::steady_clock::time_point _lastRequestTime;
 };

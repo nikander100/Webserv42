@@ -14,12 +14,12 @@ std::unique_ptr<ClientSocket> ServerSocket::accept() const {
 	}
 
 	// Set non-blocking mode
-	if (fcntl(clientFd, F_SETFL, fcntl(clientFd, F_GETFL, 0) | O_NONBLOCK) == -1) {
+	if (fcntl(clientFd, F_SETFL, fcntl(clientFd, F_GETFL, 0)) == -1) { // possibly add | O_NONBLOCK after 0)
 		::close(clientFd);
 		throw std::runtime_error("Error setting client socket to non-blocking: " + std::string(strerror(errno)));
 	}
-
-	return std::make_unique<ClientSocket>(clientFd, clientAddress);
+	std::unique_ptr<ClientSocket> clientSocket = std::make_unique<ClientSocket>(clientFd, clientAddress);
+	return clientSocket;
 }
 
 void ServerSocket::initialize(int domain, int type, int protocol, int level, int optname, int backlog, in_addr_t host, int port) {
