@@ -59,9 +59,3 @@ constexpr uint16_t TEST_PORT = 8727;
 #include "BuiltinErrorPages.hpp"
 #include "StatusCodes.hpp"
 #include "FileUtils.hpp"
-
-//part of reading config file
-std::vector<std::string>	readfile(char **argv); //TODO needs own class
-
-//part of validation
-bool checkbalance(std::vector<std::string> conf); //TODO needs own class

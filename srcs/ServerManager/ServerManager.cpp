@@ -6,7 +6,7 @@ ServerManager::ServerManager(): _running(false) {
 ServerManager::~ServerManager() {
 }
 
-void ServerManager::setupServers()
+void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 {
 	std::unique_ptr<Server> testServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
 	
@@ -63,8 +63,11 @@ void ServerManager::setupServers()
 	testServer1->setLocation(locationPath1, location_settings);
 
 	
-	_servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
-	_servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
+	// _servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
+	// _servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
+	for (auto &server : servers) {
+		_servers.push_back(std::move(server));
+	}
 
 	for (auto &server : _servers) {
 		server->setupServer(); // Use -> to call methods on the Server object

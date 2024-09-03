@@ -6,7 +6,7 @@
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
-			"args": ["config_files/blank.conf"], // command line arguments go here
+			"args": ["config_files/server_dir.conf"], // command line arguments go here
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
