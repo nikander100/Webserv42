@@ -266,6 +266,7 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	std::regex returnRegex(R"(return\s+(.+);)");
 	std::regex aliasRegex(R"(alias\s+(.+);)");
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
+			// std::cout << cgiExt.first << "		: what??\n"; //THIS ONE NEEDS TO BE GONE!!!-------------------------------------------------------------------------------------------------
 
 	checkInput(path);
 	newLocation.setPath(path);
@@ -645,4 +646,27 @@ void Server::checkClientTimeouts() {
 */
 
 
-// TODO handle cgi read and write for request and response.
+
+std::ostream	&operator<<(std::ostream &o, Server const &x)
+{
+    	Server& nonConst = const_cast<Server&>(x);
+		const auto& lotions = nonConst.getLocations();
+	o 
+		<< RED << "\n" << LARGELINE << RESET
+		<< BOLD << BLUE << "\nServer {"
+		<< "\nserver_Name	:	" << x.getServerName()
+		<< "\nauto_index	:	" << x.getAutoIndex() 
+		<< "\nMax_Body_Size	:	" <<	x.getClientMaxBodySize()
+		<< "\nHost		:	" << x.getHost()
+		<< "\nIndex		:	" <<	x.getIndex()
+		<< "\nListen_Fd	:	" << x.getListenFd()
+		<< "\nRoot		:	" << x.getRoot()
+		<< "\nPort		:	" <<	x.getPort() << RESET;
+
+		for (const auto& pair : lotions)
+			o << pair.second;
+
+		o << BLUE << BOLD << "}\n" << RESET;
+		o << RED << LARGELINE << "\n" << RESET;
+	return (o);
+}
