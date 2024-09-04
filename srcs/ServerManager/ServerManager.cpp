@@ -34,7 +34,7 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 		"allow_methods GET POST DELETE;",
 		"autoindex on;"
 	};
-	std::string locationPath = "/;";
+	std::string locationPath = "/";
 	testServer->setLocation(locationPath, location_settings);
 
 	std::unique_ptr<Server> testServer1 = std::make_unique<Server>(); // Create a unique_ptr to a Server
@@ -59,15 +59,63 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 		"allow_methods GET POST DELETE;",
 		"autoindex on;"
 	};
-	std::string locationPath1 = "/;";
+	std::string locationPath1 = "/";
 	testServer1->setLocation(locationPath1, location_settings);
 
-	
+	_servers = std::move(servers); // Move the unique_ptr into the vector
 	// _servers.push_back(std::move(testServer)); // Move the unique_ptr into the vector
 	// _servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
-	for (auto &server : servers) {
-		_servers.push_back(std::move(server));
-	}
+	
+	std::unique_ptr<Server> fusionWebServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
+	
+	std::string port3 = "8002;";
+	fusionWebServer->setPort(port3);
+	std::string name3 = "localhost;";
+	fusionWebServer->setServerName(name3);
+	std::string host3 = "127.0.0.1;";
+	fusionWebServer->setHost(host3);
+	std::string root3 = "wwwroot/fusion_web/;";
+	fusionWebServer->setRoot(root3);
+	std::string index3 = "index.html;";
+	fusionWebServer->setIndex(index3); 
+	std::string cmbs3 = "3000000;";
+	fusionWebServer->setClientMaxBodySize(cmbs3);
+	std::string ep3 = "error_pages/404.html;";
+	fusionWebServer->setErrorPage(HTTP::StatusCode::Code::NOT_FOUND, ep3);
+	
+	std::vector<std::string> location_settings_root = {
+		"allow_methods DELETE POST GET;",
+		"autoindex off;"
+	};
+	std::string locationPath_root = "/";
+	fusionWebServer->setLocation(locationPath_root, location_settings_root);
+	
+	std::vector<std::string> location_settings_tours = {
+		"autoindex on;",
+		"index tours1.html;",
+		"allow_methods GET POST PUT HEAD;"
+	};
+	std::string locationPath_tours = "/tours";
+	fusionWebServer->setLocation(locationPath_tours, location_settings_tours);
+	
+	std::vector<std::string> location_settings_red = {
+		"return /tours;"
+	};
+	std::string locationPath_red = "/red";
+	fusionWebServer->setLocation(locationPath_red, location_settings_red);
+	
+	std::vector<std::string> location_settings_cgi_bin = {
+		"root ./;",
+		"allow_methods GET POST DELETE;",
+		"index time.py;",
+		"cgi_path /usr/bin/python3 /bin/bash;",
+		"cgi_ext .py .sh;"
+	};
+	std::string locationPath_cgi_bin = "/cgi-bin";
+	fusionWebServer->setLocation(locationPath_cgi_bin, location_settings_cgi_bin);
+	
+	// Add the fusionWebServer to the vector
+	_servers.push_back(std::move(fusionWebServer));
 
 	for (auto &server : _servers) {
 		server->setupServer(); // Use -> to call methods on the Server object

@@ -21,8 +21,8 @@ int	main(int ac, char **av) {
 				av[1] = NULL;
 			}
 			Parse parser;
-			parser.readfile(av);
-			parser.printRawConf();
+			// parser.readfile(av);
+			// parser.printRawConf();
 			// std::vector<std::string> file = readfile(av);
 			//some configparser parser/serverCluster;
 			//ServerManager manager;

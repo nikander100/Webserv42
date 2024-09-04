@@ -517,6 +517,7 @@ bool HttpResponse::requestIsSuccessful() {
 	return _statusCode == HTTP::StatusCode::Code::NONE;
 }
 
+// TODO HIER CHECKEN op error  page eneration op favicon get error?
 void HttpResponse::buildErrorBody() {
 	std::pair<bool, std::string> errorPageResult = _server.getErrorPage(_statusCode);
 

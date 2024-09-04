@@ -184,6 +184,8 @@ void Server::setErrorPage(HTTP::StatusCode::Code key, std::string path) {
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
 
+	checkInput(path);
+
 	//check if file exists
 	if (FileUtils::getTypePath(path) != FileType::DIRECTORY) {
 		if (FileUtils::getTypePath(_root + path) != FileType::FILE) {
@@ -256,13 +258,16 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	Location newLocation;
 	std::vector<Method> methods;
 	std::vector<std::pair<std::string, std::string>> cgiPathExtension;
+	std::vector<std::string> cgiPathLines;
 
 	std::regex rootRegex(R"(root\s(.+);)");
 	std::regex methodRegex(R"(allow_methods\s+((?:GET|POST|PUT|HEAD|DELETE)(?:\s+(?:GET|POST|PUT|HEAD|DELETE))*);)"); // this works!
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
-	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
-	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
+	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
+	// std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
+	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
+	// std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
 	std::regex returnRegex(R"(return\s+(.+);)");
 	std::regex aliasRegex(R"(alias\s+(.+);)");
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
@@ -271,6 +276,7 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	// checkInput(path);
 	newLocation.setPath(path);
 	
+	// first pass 
 	for (const auto &line : parsedLocation) {
 		std::smatch match;
 		if (std::regex_search(line, match, rootRegex)) {
@@ -317,17 +323,27 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 				cgiPathExtension.emplace_back(cgiExt, "");
 			}
 		} else if (std::regex_search(line, match, cgiPathRegex)) {
-			std::istringstream iss(match[1]);
-			std::string cgiPath;
-			for (auto &cgiExt : cgiPathExtension) {
-				if (iss >> cgiPath) {
-					cgiExt.second = cgiPath;
-				} else {
-					break ;
-				}
-			}
+			// Store cgi_path lines for later processing
+			cgiPathLines.push_back(line);
 		} else {
 			throw std::runtime_error("Parameter in a location is invalid");
+		}
+	}
+
+	// second pass
+	for (const auto &line : cgiPathLines) {
+		std::smatch match;
+		if (std::regex_search(line, match, cgiPathRegex)) {
+			std::istringstream iss(match[1]);
+			std::string cgiPath;
+			while (iss >> cgiPath) {
+				for (auto &cgiExt : cgiPathExtension) {
+					if (cgiExt.second.empty()) {
+						cgiExt.second = cgiPath;
+						break;
+					}
+				}
+			}
 		}
 	}
 
@@ -408,13 +424,52 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 		if (cgiPathExtension.empty() || location.getIndex().empty()) {
 			return CgiValidation::FAILED_CGI_VALIDATION;
 		}
+
+		// Open the /cgi-bin directory
+		std::filesystem::path cgiBinPath = location.getRoot() + path;
+		if (!std::filesystem::exists(cgiBinPath) || !std::filesystem::is_directory(cgiBinPath)) {
+			return CgiValidation::FAILED_CGI_VALIDATION;
+		}
+
+		std::set<std::string> foundExtensions;
+
+		for (const auto &entry : std::filesystem::directory_iterator(cgiBinPath)) {
+			if (entry.is_directory()) {
+				continue;
+			}
+
+			std::string fileName = entry.path().filename().string();
+
+			for (const auto &pair : cgiPathExtension) {
+				const std::string &ext = pair.first;
+				const std::string &cgiPath = pair.second;
+
+				if (fileName.size() >= ext.size() &&
+					fileName.compare(fileName.size() - ext.size(), ext.size(), ext) == 0) {
+					// Check if the CGI path is valid
+					if (FileUtils::getTypePath(cgiPath) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, cgiPath)) {
+						return CgiValidation::FAILED_CGI_VALIDATION;
+					}
+					foundExtensions.insert(ext);
+					break;
+				}
+			}
+		}
+
+		// Check if all required extensions were found
 		for (const auto &pair : cgiPathExtension) {
-			const std::string &path = pair.first;
-			const std::string &ext = pair.second;
-			if (path.empty() || FileUtils::getTypePath(path) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, path)) {
+			if (foundExtensions.find(pair.first) == foundExtensions.end()) {
 				return CgiValidation::FAILED_CGI_VALIDATION;
 			}
 		}
+
+		// // for (const auto &pair : cgiPathExtension) {
+		// // 	const std::string &path = pair.second;
+		// // 	const std::string &ext = pair.first;
+		// // 	if (path.empty() || FileUtils::getTypePath(path) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, path)) {
+		// // 		return CgiValidation::FAILED_CGI_VALIDATION;
+		// // 	}
+		// // }
 		// if (cgiPathExtension.size() != location.getExtensionPath().size()) {
 		// 	return FAILED_CGI_VALIDATION;
 		// }
@@ -649,7 +704,7 @@ void Server::checkClientTimeouts() {
 
 std::ostream	&operator<<(std::ostream &o, Server const &x)
 {
-    	Server& nonConst = const_cast<Server&>(x);
+		Server& nonConst = const_cast<Server&>(x);
 		const auto& lotions = nonConst.getLocations();
 	o 
 		<< RED << "\n" << LARGELINE << RESET

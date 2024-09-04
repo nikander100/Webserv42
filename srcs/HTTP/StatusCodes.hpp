@@ -84,6 +84,7 @@ inline std::string ToString(Code code)
 		// {StatusCode::MULTIPLE_CHOICE, "Multiple Choice"},
 		{Code::MOVED_PERMANENTLY, "Moved Permanently"},
 		// {StatusCode::MOVED_TEMPORARILY, "Moved Temporarily"},
+		{Code::FOUND, "Found"},
 		{Code::SEE_OTHER, "See Other"},
 		{Code::NOT_MODIFIED, "Not Modified"},
 		{Code::TEMPORARY_REDIRECT, "Temporary Redirect"},
