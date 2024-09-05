@@ -530,7 +530,6 @@ void HttpResponse::buildErrorBody() {
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
-			_statusCode = HTTP::StatusCode::Code::FOUND;
 		}
 
 		_targetFile = combinePaths(_server.getRoot(), _location);
