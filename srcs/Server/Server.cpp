@@ -282,7 +282,12 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 		if (std::regex_search(line, match, rootRegex)) {
 			if (!newLocation.getRoot().empty())
 				throw std::runtime_error("Root of location is duplicated");
-			newLocation.setRoot(match[1]);
+			if (FileUtils::getTypePath(match[1]) == FileType::DIRECTORY) {
+				newLocation.setRoot(match[1]);
+			} else {
+				newLocation.setRoot(_root + match[1].str());
+			}
+			
 		} else if (std::regex_search(line, match, methodRegex)) {
 			std::string methodsStr = match[1];
 			std::istringstream iss(methodsStr);
@@ -681,7 +686,7 @@ void Server::checkClientTimeouts() {
 		auto lastRequestTime = client.getLastRequestTime();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
 
-		DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
+		// DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
 		if (duration > CONNECTION_TIMEOUT) {
 			DEBUG_PRINT(BLUE, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
 			it = _clients.erase(it);

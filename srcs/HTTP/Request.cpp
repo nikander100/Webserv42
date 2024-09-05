@@ -138,7 +138,9 @@ bool HttpRequest::parseHeader(const std::string &line) {
 }
 
 bool HttpRequest::handleHeaders(std::istream& stream) {
-	stream.ignore(1); // Skip \r\n
+	if (_method != Method::POST && _method != Method::PUT) {
+		stream.ignore(1); // Skip \r\n
+	}
 	if (_headers.find("host") != _headers.end()) {
 		_serverName = _headers["host"];
 	} else {
@@ -261,8 +263,10 @@ bool HttpRequest::feed(const std::string &data) {
 				break;
 			}
 			case Reading_Body_Data: {
-				if (_contentLength > 0 && stream.tellg() + static_cast<std::streamoff>(_contentLength) <= static_cast<std::streamoff>(data.size())) {
-					_body = data.substr(stream.tellg(), _contentLength);
+				std::streamoff currentPos = stream.tellg();
+				std::streamoff dataSize = static_cast<std::streamoff>(data.size());
+				if (_contentLength > 0 && currentPos + static_cast<std::streamoff>(_contentLength) <= dataSize) {
+					_body = data.substr(currentPos, _contentLength);
 					stream.seekg(_contentLength, std::ios::cur); // Move the get pointer forward
 					_state = Complete;
 				} else {

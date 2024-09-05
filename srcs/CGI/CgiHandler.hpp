@@ -34,7 +34,6 @@ class CgiHandler
 
 		std::string getPathInfo(const std::string& path, const std::vector<std::pair<std::string, std::string>>& extensions);
 		std::string decode(std::string &path);
-		int state;
 
 	private:
 		std::unordered_map<std::string, std::string> _env;

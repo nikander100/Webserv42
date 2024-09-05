@@ -29,6 +29,14 @@ void HttpResponse::appendContentTypeHeader() {
 	// std::string path = _request.getPath();
 	std::string path = _targetFile;
 
+	// Check if the response is from a CGI script
+	if (path.empty() && _cgi) {
+		// Set Content-Type based on CGI output or default to text/html
+		std::string mimeType = "text/html"; // Default MIME type for CGI responses
+		_responseHeader.append("Content-Type: " + mimeType + "\r\n");
+		return;
+	}
+
 	std::string extension = path.rfind('.') != std::string::npos ? path.substr(path.rfind('.')) : "";
 	extension = (_autoIndex && path.back() == '/') ? ".html" : extension;
 
@@ -154,19 +162,32 @@ std::string HttpResponse::combinePaths(const std::string &path1, const std::stri
 	return result;
 }
 
-bool HttpResponse::handleCgiTemp(Location &location) {
-	std::string path = _targetFile;
-	// cgiHandler.reset();
-	// cgiHandler.setCgiPath(path);
-	_cgi = 1;
-	// cgiHandler.initEnvCgi(_request, location);
-	// cgiHandler.execute(_statusCode, _clientFd);
-	if (_statusCode == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
+bool HttpResponse::checkAndSetStatusCode(CgiHandler& cgiHandler) {
+	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		_statusCode = cgiHandler.getStatusCode();
+		_cgi = 0;
 		return false;
 	}
 	return true;
 }
 
+bool HttpResponse::handleCgiTemp(Location &location) {
+	std::string path = _targetFile;
+	cgiHandler.reset();
+	cgiHandler.setCgiPath(path);
+	_cgi = 1;
+	cgiHandler.initEnv(_request, location);
+	if (!checkAndSetStatusCode(cgiHandler)) {
+		return false;
+	}
+	cgiHandler.execute();
+	if (!checkAndSetStatusCode(cgiHandler)) {
+		return false;
+	}
+	return true;
+}
+
+// TODO rename to processCgi
 bool HttpResponse::handleCgi(Location &location) {
 	std::string path = _request.getPath().erase(0, _request.getPath().find_first_not_of('/'));
 	if (path == "cgi-bin") {
@@ -213,13 +234,20 @@ bool HttpResponse::handleCgi(Location &location) {
 	cgiHandler.setCgiPath(path);
 	_cgi = 1;
 	cgiHandler.initEnv(_request, location);
-	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+	if (!checkAndSetStatusCode(cgiHandler)) {
 		return false;
 	}
 	cgiHandler.execute();
-	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
+	if (!checkAndSetStatusCode(cgiHandler)) {
 		return false;
 	}
+	// TODO je moeder cgi correct handling move to new function handleCgi
+	// Read cgi output
+	std::string cgiresponse = cgiHandler.getCgiOutput();
+	_responseBody.assign(cgiresponse.begin(), cgiresponse.end());
+
+	// Set status code
+	_statusCode = HTTP::StatusCode::Code::OK;
 
 	return true;
 }
@@ -517,7 +545,6 @@ bool HttpResponse::requestIsSuccessful() {
 	return _statusCode == HTTP::StatusCode::Code::NONE;
 }
 
-// TODO HIER CHECKEN op error  page eneration op favicon get error?
 void HttpResponse::buildErrorBody() {
 	std::pair<bool, std::string> errorPageResult = _server.getErrorPage(_statusCode);
 
@@ -525,11 +552,14 @@ void HttpResponse::buildErrorBody() {
 		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 	}
 	else { // custom
+		// HTTP::StatusCode::Code tmpCode; TODO
 		if (_statusCode >= HTTP::StatusCode::Code::BAD_REQUEST && _statusCode < HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 			_location = errorPageResult.second;
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
+			// tmpCode = _statusCode; TODO
+			_statusCode = HTTP::StatusCode::Code::FOUND; //possibly needed. but for bette rpractice should be removed..
 		}
 
 		_targetFile = combinePaths(_server.getRoot(), _location);
@@ -538,6 +568,7 @@ void HttpResponse::buildErrorBody() {
 			_statusCode = oldCode;
 			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 		}
+		// _statusCode = tmpCode; TODO
 	}
 }
 
@@ -640,9 +671,12 @@ void HttpResponse::buildResponse() {
 	if (!requestIsSuccessful() || !buildBody()) {
 		buildErrorBody();
 	}
-	if (_cgi) {
-		return;
-	}
+	// TODO je moeder cgi correct handling
+	// if (_cgi) { //todo sht hier?
+	// // set correct headers
+	// // set correct status
+	// 	return;
+	// }
 	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
@@ -657,7 +691,7 @@ void HttpResponse::buildResponse() {
 	setStatus();
 	setHeaders();
 
-	if (_request.getMethod() != Method::HEAD && (_request.getMethod() == Method::GET || _statusCode != HTTP::StatusCode::Code::OK)) {
+	if (_request.getMethod() != Method::HEAD) {
 		_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 	}
 }

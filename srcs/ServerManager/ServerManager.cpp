@@ -67,7 +67,7 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 	
 	std::unique_ptr<Server> fusionWebServer = std::make_unique<Server>(); // Create a unique_ptr to a Server
 	
-	std::string port3 = "8002;";
+	std::string port3 = "8004;";
 	fusionWebServer->setPort(port3);
 	std::string name3 = "localhost;";
 	fusionWebServer->setServerName(name3);
@@ -116,7 +116,7 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 	// Add the fusionWebServer to the vector
 	_servers.push_back(std::move(fusionWebServer));
 
-	_servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
+	// _servers.push_back(std::move(testServer1)); // Move the unique_ptr into the vector
 	for (auto &server : _servers) {
 		server->setupServer(); // Use -> to call methods on the Server object
 	}

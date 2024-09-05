@@ -55,7 +55,7 @@ class HttpResponse
 		std::string _targetFile;
 		std::string _location;
 		int _cgi;
-		Pipe _cgiPipe;
+		// Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
 		bool _autoIndex;
 
@@ -77,6 +77,8 @@ class HttpResponse
 		bool handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
 		bool handleCgi(Location &location);
 		bool handleCgiTemp(Location &location); // to be renamed
+		bool checkAndSetStatusCode(CgiHandler &cgiHandler);
+
 
 		std::string getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations); // toberanmed
 		std::string combinePaths(const std::string &path1, const std::string &path2, const std::string &path3 = "");
