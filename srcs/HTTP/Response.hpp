@@ -32,7 +32,6 @@ class HttpResponse
 		void cutResponse(size_t size);
 		int getCgistate();
 		void setCgistate(int state);
-		// void setResponse(HTTP::StatusCode code);
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
@@ -44,7 +43,7 @@ class HttpResponse
 		int _clientFd;
 		HttpRequest _request;
 
-		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
+		std::vector<uint8_t> _responseContent;
 		std::vector<uint8_t> _responseBody;
 		std::vector<uint8_t> _autoIndexBody;
 
@@ -55,13 +54,13 @@ class HttpResponse
 		std::string _targetFile;
 		std::string _location;
 		int _cgi;
-		// Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
 		bool _autoIndex;
 
 		bool buildBody();
 		void buildErrorBody();
 		bool buildAutoIndexBody();
+		bool buildCgiBody();
 		void setErrorResponse(HTTP::StatusCode::Code code);
 		bool requestIsSuccessful();
 		void setStatus();
@@ -75,7 +74,7 @@ class HttpResponse
 		void appendDateHeader();
 
 		bool handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
-		bool handleCgi(Location &location);
+		bool executeCgi(Location &location);
 		bool handleCgiTemp(Location &location); // to be renamed
 		bool checkAndSetStatusCode(CgiHandler &cgiHandler);
 

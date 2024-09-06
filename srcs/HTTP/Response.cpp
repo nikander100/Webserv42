@@ -83,13 +83,20 @@ void HttpResponse::appendDateHeader() {
 
 
 void HttpResponse::setHeaders() {
-	// Add necessary headers to the response header
-	appendContentTypeHeader();
-	appendContentLengthHeader();
-	appendConnectionTypeHeader();
-	appendServerHeader();
-	appendLocationHeader();
-	appendDateHeader();
+	if (_cgi) {
+		appendServerHeader();
+		appendDateHeader();
+		appendConnectionTypeHeader();
+		appendContentLengthHeader();
+	} else {
+		// Add necessary headers to the response header
+		appendContentTypeHeader();
+		appendContentLengthHeader();
+		appendConnectionTypeHeader();
+		appendServerHeader();
+		appendLocationHeader();
+		appendDateHeader();
+	}
 
 	// Add a blank line to separate the headers from the body
 	_responseHeader.append("\r\n");
@@ -111,6 +118,9 @@ size_t HttpResponse::getResponseBodyLength() {
 }
 
 void HttpResponse::setStatus() {
+	if (_cgi) {
+		return;
+	}
 	_responseHeader.append("HTTP/1.1 " + std::to_string(static_cast<int>(_statusCode)) + " ");
 	_responseHeader.append(HTTP::StatusCode::ToString(_statusCode) + "\r\n");
 }
@@ -188,7 +198,7 @@ bool HttpResponse::handleCgiTemp(Location &location) {
 }
 
 // TODO rename to processCgi
-bool HttpResponse::handleCgi(Location &location) {
+bool HttpResponse::executeCgi(Location &location) {
 	std::string path = _request.getPath().erase(0, _request.getPath().find_first_not_of('/'));
 	if (path == "cgi-bin") {
 		path = combinePaths(path, location.getIndex());
@@ -241,14 +251,30 @@ bool HttpResponse::handleCgi(Location &location) {
 	if (!checkAndSetStatusCode(cgiHandler)) {
 		return false;
 	}
-	// TODO je moeder cgi correct handling move to new function handleCgi
+
+	return true;
+}
+
+bool HttpResponse::buildCgiBody() {
 	// Read cgi output
-	std::string cgiresponse = cgiHandler.getCgiOutput();
-	_responseBody.assign(cgiresponse.begin(), cgiresponse.end());
+	std::string cgiOutput = cgiHandler.getCgiOutput();
 
-	// Set status code
-	_statusCode = HTTP::StatusCode::Code::OK;
+	// Extract headers and body from CGI output
+	size_t headerEnd = cgiOutput.find("\r\n\r\n");
+	if (headerEnd != std::string::npos) {
+		std::string cgiHeaders = cgiOutput.substr(0, headerEnd + 2);
+		_responseHeader.append(cgiHeaders);
 
+		// Extract the body from the CGI output
+		std::string cgiBody = cgiOutput.substr(headerEnd + 4);
+		_responseBody.assign(cgiBody.begin(), cgiBody.end());
+	} else {
+		// If no headers are found, treat the entire output as the body
+		_responseBody.assign(cgiOutput.begin(), cgiOutput.end());
+	}
+
+	std::string responsebody = std::string(_responseBody.begin(), _responseBody.end());
+	DEBUG_PRINT(GREEN, "Response body: " + responsebody);
 	return true;
 }
 
@@ -288,7 +314,7 @@ bool HttpResponse::handleTarget() {
 
 		//handle cgi
 		if (location.isCgiPath()) {
-			return handleCgi(location);
+			return executeCgi(location);
 		}
 
 		//handle alias
@@ -452,7 +478,11 @@ bool HttpResponse::buildBody() {
 		return false;
 	}
 
-	if (_cgi || _autoIndex) {
+	if (_cgi) {
+		return buildCgiBody();
+	}
+
+	if (_autoIndex) {
 		return true;
 	}
 
@@ -464,6 +494,8 @@ bool HttpResponse::buildBody() {
 		if (!readFile()) {
 			return false;
 		}
+		_statusCode = HTTP::StatusCode::Code::OK;
+		return true;
 	}
 	else if (_request.getMethod() == Method::POST || _request.getMethod() == Method::PUT) {
 		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
@@ -473,7 +505,8 @@ bool HttpResponse::buildBody() {
 
 		std::ofstream fout(_targetFile, std::ios::binary);
 		if (!fout) {
-			_statusCode = HTTP::StatusCode::Code::FORBIDDEN;
+			DEBUG_PRINT(RED, "Failed to open file for writing: " + _targetFile);
+			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 			return false;
 		}
 
@@ -485,7 +518,9 @@ bool HttpResponse::buildBody() {
 		else{
 			fout.write(_request.getBody().c_str(), _request.getBody().length());
 		}
-
+		fout.close();
+		_statusCode = HTTP::StatusCode::Code::CREATED;
+		return true;
 	}
 	else if (_request.getMethod() == Method::DELETE) {
 		if (!FileUtils::isFileExistAndReadable(_targetFile, "")) {
@@ -496,13 +531,14 @@ bool HttpResponse::buildBody() {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 			return false;
 		}
+		_statusCode = HTTP::StatusCode::Code::NO_CONTENT;
+		return true;
 	}
-	_statusCode = HTTP::StatusCode::Code::OK;
-	return true;
+	_statusCode = HTTP::StatusCode::Code::METHOD_NOT_ALLOWED;
+	return false;
 }
 
-bool HttpResponse::readFile() { // TODO remove debug
-	DEBUG_PRINT(GREEN, "path " + _targetFile);
+bool HttpResponse::readFile() {
 	std::ifstream fin(_targetFile, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
@@ -672,11 +708,6 @@ void HttpResponse::buildResponse() {
 		buildErrorBody();
 	}
 	// TODO je moeder cgi correct handling
-	// if (_cgi) { //todo sht hier?
-	// // set correct headers
-	// // set correct status
-	// 	return;
-	// }
 	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
@@ -694,6 +725,8 @@ void HttpResponse::buildResponse() {
 	if (_request.getMethod() != Method::HEAD) {
 		_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 	}
+	std::string response = getResponse();
+	DEBUG_PRINT(GREEN, "Response: " + response);
 }
 
 void HttpResponse::reset() {
