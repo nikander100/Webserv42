@@ -725,8 +725,6 @@ void HttpResponse::buildResponse() {
 	if (_request.getMethod() != Method::HEAD) {
 		_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 	}
-	std::string response = getResponse();
-	DEBUG_PRINT(GREEN, "Response: " + response);
 }
 
 void HttpResponse::reset() {
