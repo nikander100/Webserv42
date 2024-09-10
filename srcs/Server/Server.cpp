@@ -644,7 +644,6 @@ void Server::handleEpollIn(struct epoll_event &event) {
 		client.recv();
 
 		if (client.requestState()) {
-			// TODO set epoll state correctly.
 			event.events = EPOLLOUT;
 			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
@@ -667,8 +666,8 @@ void Server::handleEvent(struct epoll_event &event) {
 			handleEpollIn(event); // Handle Request.
 		} 
 	} catch (const std::runtime_error& e) { // TODO test with client close and check if it works.
-		// EpollManager::getInstance().removeFromEpoll(event.data.fd);
-		// removeClient(event.data.fd);
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
 		DEBUG_PRINT(RED, "Server::handleEvent: " << e.what());
 	}
 }
