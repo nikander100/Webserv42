@@ -14,14 +14,14 @@ enum State {
 };
 
 /* 
-	HttpRequest Class will be used to parase and store the request. 
+	Request Class will be used to parase and store the request. 
 	It gets feeded with the request and will flip a flag when parasing is finished.
 */
-class HttpRequest
+class Request
 {
 	public:
-		HttpRequest();
-		virtual ~HttpRequest();
+		Request();
+		virtual ~Request();
 
 		bool feed(const std::string &data);
 		bool parsingComplete() const;
@@ -65,6 +65,7 @@ class HttpRequest
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		bool handleHeaders(std::istream &stream);
-		bool parseMultipartData(std::istream &stream);
+		bool parseMultipartData(std::istringstream &stream);
+		bool _multipartIsBinary;
 		bool parseChunkSize(const std::string &line);
 };

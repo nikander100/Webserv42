@@ -17,8 +17,8 @@ class CgiHandler
 		CgiHandler(std::string path);
 		virtual ~CgiHandler();
 
-		void initEnv(HttpRequest& req, const Location &location);
-		void initEnvCgi(HttpRequest& req, const Location &location);
+		void initEnv(Request& req, const Location &location);
+		void initEnvCgi(Request& req, const Location &location);
 		void execute();
 		void reset();
 		std::string setCookie(const std::string cookie_str); //omNomNom.

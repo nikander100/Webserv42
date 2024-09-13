@@ -36,7 +36,7 @@ const HTTP::StatusCode::Code &CgiHandler::getStatusCode() const {
 	return _error_code;
 }
 
-void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
+void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	// Construct the CGI executable path
 	std::string cgiExec = "cgi-bin/" + location.getCgiPathExtensions().front().first;
 
@@ -96,7 +96,7 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 	_cgiArgv.push_back(nullptr);
 }
 
-void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
+void CgiHandler::initEnv(Request& req, const Location &location) {
 	std::string extension = _cgiPath.substr(_cgiPath.find_last_of('.'));
 	const auto& cgiPathExtensions = location.getCgiPathExtensions();
 	auto it_path = std::find_if(cgiPathExtensions.begin(), cgiPathExtensions.end(),

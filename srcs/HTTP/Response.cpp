@@ -4,14 +4,14 @@
 HttpResponse::HttpResponse(Server &server, int clientFd) : _server(server), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 }
 
-HttpResponse::HttpResponse(Server &server, HttpRequest &request, int clientFd) : _server(server), _request(request), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server, Request &request, int clientFd) : _server(server), _request(request), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 	request.print();
 }
 
 HttpResponse::~HttpResponse() {
 }
 
-void HttpResponse::setRequest(HttpRequest &request) {
+void HttpResponse::setRequest(Request &request) {
 	_request = request;
 }
 
@@ -470,6 +470,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 			}
 		}
 	}
+	// TODO possinly set _targetFile to filename??
 	return new_body;
 }
 
@@ -588,13 +589,13 @@ void HttpResponse::buildErrorBody() {
 		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 	}
 	else { // custom
-		// HTTP::StatusCode::Code tmpCode; TODO
+		// HTTP::StatusCode::Code tmpCode; //TODO
 		if (_statusCode >= HTTP::StatusCode::Code::BAD_REQUEST && _statusCode < HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 			_location = errorPageResult.second;
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
-			// tmpCode = _statusCode; TODO
+			// tmpCode = _statusCode; //TODO
 			_statusCode = HTTP::StatusCode::Code::FOUND; //possibly needed. but for bette rpractice should be removed..
 		}
 
@@ -604,7 +605,7 @@ void HttpResponse::buildErrorBody() {
 			_statusCode = oldCode;
 			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 		}
-		// _statusCode = tmpCode; TODO
+		// _statusCode = tmpCode; //TODO
 	}
 }
 

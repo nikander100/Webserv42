@@ -18,10 +18,10 @@ class HttpResponse
 {
 	public:
 		HttpResponse(Server &server, int clientFd);
-		HttpResponse(Server &server, HttpRequest &request, int clientFd);
+		HttpResponse(Server &server, Request &request, int clientFd);
 		~HttpResponse();
 
-		void setRequest(HttpRequest &request);
+		void setRequest(Request &request);
 		
 		std::string getResponse();
 		size_t getResponseBodyLength();
@@ -41,7 +41,7 @@ class HttpResponse
 	private:
 		Server &_server;
 		int _clientFd;
-		HttpRequest _request;
+		Request _request;
 
 		std::vector<uint8_t> _responseContent;
 		std::vector<uint8_t> _responseBody;

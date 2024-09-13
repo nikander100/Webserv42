@@ -11,8 +11,8 @@
 
 #define PORT 9221
 
-// compile with g++ -g -Wall -Wextra -Werror -std=c++20 HttpRequest-test.cpp ../srcs/HttpRequest.cpp -o httpRequestTest.out
-// usage ./httpRequestTest.out > HttpRequest.txt
+// compile with g++ -g -Wall -Wextra -Werror -std=c++20 Request-test.cpp ../srcs/Request.cpp -o httpRequestTest.out
+// usage ./httpRequestTest.out > Request.txt
 
 // test with http://localhost:9221/path/to/resource?param1=value1&param2=value2#section1
 int main(int argc, char **argv)
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
 		return (1); 
 	}
 
-	HttpRequest request;
+	Request request;
 	struct sockaddr_in client_address;
 	long  client_address_size = sizeof(client_address);
 	if ((accept_socket = accept(webserv_fd, (struct sockaddr *)&client_address, (socklen_t*)&client_address_size)) == -1)
