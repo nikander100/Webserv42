@@ -118,9 +118,10 @@ size_t HttpResponse::getResponseBodyLength() {
 }
 
 void HttpResponse::setStatus() {
-	if (_cgi) {
+	if (_cgi && (_statusCode == HTTP::StatusCode::Code::OK || _statusCode == HTTP::StatusCode::Code::NONE ) ) {
 		return;
 	}
+	_responseHeader.clear();
 	_responseHeader.append("HTTP/1.1 " + std::to_string(static_cast<int>(_statusCode)) + " ");
 	_responseHeader.append(HTTP::StatusCode::ToString(_statusCode) + "\r\n");
 }
@@ -453,6 +454,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 						size_t end = buffer.find("\"", start + 10);
 						if (end != std::string::npos)
 							filename = buffer.substr(start + 10, end - (start + 10));
+							_targetFile= filename;
 					}
 				} else if (!buffer.compare(0, 1, "\r") && !filename.empty()) {
 					is_boundary = false;
@@ -462,7 +464,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 				if (!buffer.compare("--" + boundary + "\r")) {
 					is_boundary = true;
 				} else if (!buffer.compare("--" + boundary + "--\r")) {
-					new_body.erase(new_body.end() - 1);
+					new_body.erase(new_body.end() - 1); // maybe should be -2
 					break;
 				} else {
 					new_body += (buffer + "\n");
@@ -470,7 +472,6 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 			}
 		}
 	}
-	// TODO possinly set _targetFile to filename??
 	return new_body;
 }
 
@@ -499,9 +500,27 @@ bool HttpResponse::buildBody() {
 		return true;
 	}
 	else if (_request.getMethod() == Method::POST || _request.getMethod() == Method::PUT) {
+		std::string tempBody;
+		if (!_request.getBoundary().empty()) {
+			tempBody = _request.getBody();
+			tempBody = removeBoundary(tempBody, _request.getBoundary());
+		}
+		//
+		//
+		////
+		//
+		////
+		// TODO je moeder hier handle upload path to server root/upload + make header property for that path.
+		// TODO je vader hier test bigger file upload...
+		////
+		//
+		////
+		//
+		//
+
 		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
 			_statusCode = HTTP::StatusCode::Code::FORBIDDEN;
-			return true;
+			return false;
 		}
 
 		std::ofstream fout(_targetFile, std::ios::binary);
@@ -512,8 +531,6 @@ bool HttpResponse::buildBody() {
 		}
 
 		if (!_request.getBoundary().empty()) {
-			std::string tempBody = _request.getBody();
-			tempBody = removeBoundary(tempBody, _request.getBoundary());
 			fout.write(tempBody.c_str(), tempBody.length());
 		}
 		else{

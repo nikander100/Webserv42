@@ -241,6 +241,7 @@ bool Request::parseMultipartData(std::istringstream &stream) {
 			// Detect binary data based on the Content-Type header
 			if (line.find("Content-Type: ") != std::string::npos) { // dont care what the content type is..
 				DEBUG_PRINT(MAGENTA, "Content-Type: " << line.substr(line.find(":") + 2));
+				_body += "\r\n"; // Add an extra \r\n
 				_multipartIsBinary = true;
 			}
 
@@ -262,7 +263,7 @@ bool Request::parseMultipartData(std::istringstream &stream) {
 						DEBUG_PRINT(RED, "Found boundary in binary data");
 						_multipartReadLength += 2; // Account for the \r\n at the end
 						_state = Complete;
-						break;
+						// break;
 					}
 					_body.append(buffer, bytesRead);
 				}
