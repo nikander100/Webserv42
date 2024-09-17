@@ -101,7 +101,7 @@ private:
 	std::string _root;
 	unsigned long _clientMaxBodySize;
 	std::string _index;
-	bool _autoIndex;
+	int _autoIndex;
 	std::unordered_map<HTTP::StatusCode::Code, std::string> _errorPages;
 	std::unordered_map<std::string, Location> _locations;
 	

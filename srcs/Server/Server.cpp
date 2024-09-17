@@ -4,7 +4,7 @@
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
 Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false), _stop(false) {
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(2), _stop(false) {
 }
 
 Server::~Server() {
@@ -146,6 +146,8 @@ void Server::setAutoIndex(std::string& autoindex) {
 }
 
 std::string Server::getAutoIndex() const {
+	if (_autoIndex == 2)
+		return ("not set yet");
 	return _autoIndex ? "on" : "off";
 }
 
