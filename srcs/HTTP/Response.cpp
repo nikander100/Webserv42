@@ -340,7 +340,6 @@ bool HttpResponse::handleTarget() {
 				}
 			}
 		}
-
 		// check if target is a directory
 		if (FileUtils::getTypePath(_targetFile) == FileType::DIRECTORY) {
 			if (_targetFile.back() != '/') {
@@ -505,18 +504,11 @@ bool HttpResponse::buildBody() {
 			tempBody = _request.getBody();
 			tempBody = removeBoundary(tempBody, _request.getBoundary());
 		}
-		//
-		//
-		////
-		//
-		////
 		// TODO je moeder hier handle upload path to server root/upload + make header property for that path.
 		// TODO je vader hier test bigger file upload...
-		////
-		//
-		////
-		//
-		//
+
+		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
+		_targetFile = uploadPath.string();
 
 		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
 			_statusCode = HTTP::StatusCode::Code::FORBIDDEN;
@@ -557,6 +549,15 @@ bool HttpResponse::buildBody() {
 }
 
 bool HttpResponse::readFile() {
+	// if request doesnt have an extension, and is not a directory, add .html
+	if (!std::filesystem::exists(_targetFile) || !std::filesystem::is_regular_file(_targetFile)) {
+		// If the file does not exist and does not have an extension, append .html
+		std::filesystem::path path(_targetFile);
+		if (!path.has_extension()) {
+			_targetFile.append(".html");
+		}
+	}
+
 	std::ifstream fin(_targetFile, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		_statusCode = HTTP::StatusCode::Code::NOT_FOUND;

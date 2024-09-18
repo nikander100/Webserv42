@@ -51,7 +51,8 @@ constexpr size_t MAX_CONTENT_SIZE = 2097152; // 2MB
 // Maximum length of a URI.
 constexpr size_t MAX_URI_LENGTH = 4096;
 
-constexpr uint16_t TEST_PORT = 8727;
+// Upload directory for file uploads.
+constexpr const char *UPLOAD_DIR = "upload";
 
 // Includes required for the servermanager
 #include "AnsiCodes.hpp"

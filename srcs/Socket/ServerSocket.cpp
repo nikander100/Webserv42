@@ -14,7 +14,7 @@ std::unique_ptr<ClientSocket> ServerSocket::accept() const {
 	}
 
 	// Set non-blocking mode
-	if (fcntl(clientFd, F_SETFL, fcntl(clientFd, F_GETFL, 0)) == -1) { // possibly add | O_NONBLOCK after 0)
+	if (fcntl(clientFd, F_SETFL, O_NONBLOCK) == -1) {
 		::close(clientFd);
 		throw std::runtime_error("Error setting client socket to non-blocking: " + std::string(strerror(errno)));
 	}
