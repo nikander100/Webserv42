@@ -5,3 +5,4 @@
 	make server upload directories on server statrup. if not existing.
 	fix website and cgi code.
 	update autoindex and port to std::optional.
+	CGI: add timeout. 
