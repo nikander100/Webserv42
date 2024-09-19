@@ -146,6 +146,8 @@ void Server::setAutoIndex(std::string& autoindex) {
 }
 
 std::string Server::getAutoIndex() const {
+	if (_autoIndex == 2)
+		return ("not set yet");
 	return _autoIndex ? "on" : "off";
 }
 
