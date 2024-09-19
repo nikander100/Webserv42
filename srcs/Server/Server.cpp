@@ -3,8 +3,8 @@
 #include "Response.hpp"
 
 // use _host(inet_addr(inaddrloopback)) to test on 127.0.0.1 and _host(inaddrany) to test on any ip. and inet_addr("10.11.4.1") to use local ip, 10.pc.row.floor
-Server::Server() : _serverName(""), _port(TEST_PORT), _host(INADDR_ANY), _root(""),
-	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(2), _stop(false) {
+Server::Server() : _serverName(""), _port(0), _host(INADDR_ANY), _root(""),
+	_clientMaxBodySize(MAX_CONTENT_SIZE), _index(""), _autoIndex(false), _stop(false) {
 }
 
 Server::~Server() {
@@ -186,6 +186,8 @@ void Server::setErrorPage(HTTP::StatusCode::Code key, std::string path) {
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
 
+	checkInput(path);
+
 	//check if file exists
 	if (FileUtils::getTypePath(path) != FileType::DIRECTORY) {
 		if (FileUtils::getTypePath(_root + path) != FileType::FILE) {
@@ -258,13 +260,16 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	Location newLocation;
 	std::vector<Method> methods;
 	std::vector<std::pair<std::string, std::string>> cgiPathExtension;
+	std::vector<std::string> cgiPathLines;
 
 	std::regex rootRegex(R"(root\s(.+);)");
 	std::regex methodRegex(R"(allow_methods\s+((?:GET|POST|PUT|HEAD|DELETE)(?:\s+(?:GET|POST|PUT|HEAD|DELETE))*);)"); // this works!
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
-	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
-	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
+	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
+	// std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
+	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
+	// std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
 	std::regex returnRegex(R"(return\s+(.+);)");
 	std::regex aliasRegex(R"(alias\s+(.+);)");
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
@@ -273,12 +278,18 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	// checkInput(path);
 	newLocation.setPath(path);
 	
+	// first pass 
 	for (const auto &line : parsedLocation) {
 		std::smatch match;
 		if (std::regex_search(line, match, rootRegex)) {
 			if (!newLocation.getRoot().empty())
 				throw std::runtime_error("Root of location is duplicated");
-			newLocation.setRoot(match[1]);
+			if (FileUtils::getTypePath(match[1]) == FileType::DIRECTORY) {
+				newLocation.setRoot(match[1]);
+			} else {
+				newLocation.setRoot(_root + match[1].str());
+			}
+			
 		} else if (std::regex_search(line, match, methodRegex)) {
 			std::string methodsStr = match[1];
 			std::istringstream iss(methodsStr);
@@ -319,17 +330,27 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 				cgiPathExtension.emplace_back(cgiExt, "");
 			}
 		} else if (std::regex_search(line, match, cgiPathRegex)) {
-			std::istringstream iss(match[1]);
-			std::string cgiPath;
-			for (auto &cgiExt : cgiPathExtension) {
-				if (iss >> cgiPath) {
-					cgiExt.second = cgiPath;
-				} else {
-					break ;
-				}
-			}
+			// Store cgi_path lines for later processing
+			cgiPathLines.push_back(line);
 		} else {
 			throw std::runtime_error("Parameter in a location is invalid");
+		}
+	}
+
+	// second pass
+	for (const auto &line : cgiPathLines) {
+		std::smatch match;
+		if (std::regex_search(line, match, cgiPathRegex)) {
+			std::istringstream iss(match[1]);
+			std::string cgiPath;
+			while (iss >> cgiPath) {
+				for (auto &cgiExt : cgiPathExtension) {
+					if (cgiExt.second.empty()) {
+						cgiExt.second = cgiPath;
+						break;
+					}
+				}
+			}
 		}
 	}
 
@@ -410,13 +431,52 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 		if (cgiPathExtension.empty() || location.getIndex().empty()) {
 			return CgiValidation::FAILED_CGI_VALIDATION;
 		}
+
+		// Open the /cgi-bin directory
+		std::filesystem::path cgiBinPath = location.getRoot() + path;
+		if (!std::filesystem::exists(cgiBinPath) || !std::filesystem::is_directory(cgiBinPath)) {
+			return CgiValidation::FAILED_CGI_VALIDATION;
+		}
+
+		std::set<std::string> foundExtensions;
+
+		for (const auto &entry : std::filesystem::directory_iterator(cgiBinPath)) {
+			if (entry.is_directory()) {
+				continue;
+			}
+
+			std::string fileName = entry.path().filename().string();
+
+			for (const auto &pair : cgiPathExtension) {
+				const std::string &ext = pair.first;
+				const std::string &cgiPath = pair.second;
+
+				if (fileName.size() >= ext.size() &&
+					fileName.compare(fileName.size() - ext.size(), ext.size(), ext) == 0) {
+					// Check if the CGI path is valid
+					if (FileUtils::getTypePath(cgiPath) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, cgiPath)) {
+						return CgiValidation::FAILED_CGI_VALIDATION;
+					}
+					foundExtensions.insert(ext);
+					break;
+				}
+			}
+		}
+
+		// Check if all required extensions were found
 		for (const auto &pair : cgiPathExtension) {
-			const std::string &path = pair.first;
-			const std::string &ext = pair.second;
-			if (path.empty() || FileUtils::getTypePath(path) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, path)) {
+			if (foundExtensions.find(pair.first) == foundExtensions.end()) {
 				return CgiValidation::FAILED_CGI_VALIDATION;
 			}
 		}
+
+		// // for (const auto &pair : cgiPathExtension) {
+		// // 	const std::string &path = pair.second;
+		// // 	const std::string &ext = pair.first;
+		// // 	if (path.empty() || FileUtils::getTypePath(path) == FileType::NON_EXISTENT || !isValidCgiExtension(ext, path)) {
+		// // 		return CgiValidation::FAILED_CGI_VALIDATION;
+		// // 	}
+		// // }
 		// if (cgiPathExtension.size() != location.getExtensionPath().size()) {
 		// 	return FAILED_CGI_VALIDATION;
 		// }
@@ -586,7 +646,6 @@ void Server::handleEpollIn(struct epoll_event &event) {
 		client.recv();
 
 		if (client.requestState()) {
-			// TODO set epoll state correctly.
 			event.events = EPOLLOUT;
 			EpollManager::getInstance().modifyEpoll(client.getFd(), event);
 		}
@@ -609,8 +668,8 @@ void Server::handleEvent(struct epoll_event &event) {
 			handleEpollIn(event); // Handle Request.
 		} 
 	} catch (const std::runtime_error& e) { // TODO test with client close and check if it works.
-		// EpollManager::getInstance().removeFromEpoll(event.data.fd);
-		// removeClient(event.data.fd);
+		EpollManager::getInstance().removeFromEpoll(event.data.fd);
+		removeClient(event.data.fd);
 		DEBUG_PRINT(RED, "Server::handleEvent: " << e.what());
 	}
 }
@@ -628,7 +687,7 @@ void Server::checkClientTimeouts() {
 		auto lastRequestTime = client.getLastRequestTime();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
 
-		DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
+		// DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
 		if (duration > CONNECTION_TIMEOUT) {
 			DEBUG_PRINT(BLUE, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
 			it = _clients.erase(it);
@@ -651,7 +710,7 @@ void Server::checkClientTimeouts() {
 
 std::ostream	&operator<<(std::ostream &o, Server const &x)
 {
-    	Server& nonConst = const_cast<Server&>(x);
+		Server& nonConst = const_cast<Server&>(x);
 		const auto& lotions = nonConst.getLocations();
 	o 
 		<< RED << "\n" << LARGELINE << RESET

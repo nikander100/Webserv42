@@ -27,7 +27,7 @@ class Client {
 		void close();
 
 		// request wrapper funcs
-		HttpRequest &getRequest();
+		Request &getRequest();
 		void feed(const std::string &data);
 		bool requestState() const;
 		HTTP::StatusCode::Code requestError() const;
@@ -47,6 +47,6 @@ class Client {
 	private:
 		std::unique_ptr<ClientSocket> _socket;
 		Server &_server;
-		HttpRequest _request;
+		Request _request;
 		std::chrono::steady_clock::time_point _lastRequestTime;
 };

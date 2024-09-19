@@ -18,10 +18,10 @@ class HttpResponse
 {
 	public:
 		HttpResponse(Server &server, int clientFd);
-		HttpResponse(Server &server, HttpRequest &request, int clientFd);
+		HttpResponse(Server &server, Request &request, int clientFd);
 		~HttpResponse();
 
-		void setRequest(HttpRequest &request);
+		void setRequest(Request &request);
 		
 		std::string getResponse();
 		size_t getResponseBodyLength();
@@ -32,7 +32,6 @@ class HttpResponse
 		void cutResponse(size_t size);
 		int getCgistate();
 		void setCgistate(int state);
-		// void setResponse(HTTP::StatusCode code);
 		std::string getHeader(); //redundant?
 		const char *getBody(); // redundant?
 
@@ -42,9 +41,9 @@ class HttpResponse
 	private:
 		Server &_server;
 		int _clientFd;
-		HttpRequest _request;
+		Request _request;
 
-		std::vector<uint8_t> _responseContent; //possibly change to string ot sure yet.
+		std::vector<uint8_t> _responseContent;
 		std::vector<uint8_t> _responseBody;
 		std::vector<uint8_t> _autoIndexBody;
 
@@ -55,13 +54,13 @@ class HttpResponse
 		std::string _targetFile;
 		std::string _location;
 		int _cgi;
-		Pipe _cgiPipe;
 		size_t cgiResponseSize; //redundant?
 		bool _autoIndex;
 
 		bool buildBody();
 		void buildErrorBody();
 		bool buildAutoIndexBody();
+		bool buildCgiBody();
 		void setErrorResponse(HTTP::StatusCode::Code code);
 		bool requestIsSuccessful();
 		void setStatus();
@@ -75,8 +74,10 @@ class HttpResponse
 		void appendDateHeader();
 
 		bool handleTarget(); //is responsible for processing an HTTP request's target resource and determining the appropriate response based on various conditions.
-		bool handleCgi(Location &location);
+		bool executeCgi(Location &location);
 		bool handleCgiTemp(Location &location); // to be renamed
+		bool checkAndSetStatusCode(CgiHandler &cgiHandler);
+
 
 		std::string getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations); // toberanmed
 		std::string combinePaths(const std::string &path1, const std::string &path2, const std::string &path3 = "");

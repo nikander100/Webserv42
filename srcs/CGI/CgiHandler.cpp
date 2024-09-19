@@ -1,9 +1,9 @@
 #include "CgiHandler.hpp"
 
-CgiHandler::CgiHandler() : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(""), state(0) {
+CgiHandler::CgiHandler() : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(""), _error_code(HTTP::StatusCode::Code::NONE) {
 }
 
-CgiHandler::CgiHandler(std::string path) : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(path), state(0) {
+CgiHandler::CgiHandler(std::string path) : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(path), _error_code(HTTP::StatusCode::Code::NONE) {
 }
 
 CgiHandler::~CgiHandler() { // todo possibly use free instead.
@@ -36,7 +36,7 @@ const HTTP::StatusCode::Code &CgiHandler::getStatusCode() const {
 	return _error_code;
 }
 
-void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
+void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	// Construct the CGI executable path
 	std::string cgiExec = "cgi-bin/" + location.getCgiPathExtensions().front().first;
 
@@ -84,6 +84,7 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 		_cgiEnvp.push_back(std::make_unique<char[]>(tmp.length() + 1));
 		std::strcpy(_cgiEnvp.back().get(), tmp.c_str());
 	}
+	_cgiEnvp.push_back(nullptr);
 
 	// Allocate and populate the _cgiArgv array
 	_cgiArgv.clear();
@@ -92,9 +93,10 @@ void CgiHandler::initEnvCgi(HttpRequest& req, const Location &location) {
 
 	_cgiArgv.push_back(std::make_unique<char[]>(_cgiPath.length() + 1));
 	std::strcpy(_cgiArgv[1].get(), _cgiPath.c_str());
+	_cgiArgv.push_back(nullptr);
 }
 
-void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
+void CgiHandler::initEnv(Request& req, const Location &location) {
 	std::string extension = _cgiPath.substr(_cgiPath.find_last_of('.'));
 	const auto& cgiPathExtensions = location.getCgiPathExtensions();
 	auto it_path = std::find_if(cgiPathExtensions.begin(), cgiPathExtensions.end(),
@@ -131,10 +133,33 @@ void CgiHandler::initEnv(HttpRequest& req, const Location &location) {
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
 	_env["REDIRECT_STATUS"] = "200";
 	_env["SERVER_SOFTWARE"] = "CRATIX";
+
+	// TODO test?
+	if (req.getMethod() == Method::POST) {
+		_env["HTTP_BODY"] = req.getBody();
+	}
+
+	// Allocate and populate the _cgiEnvp array
+	_cgiEnvp.clear();
+	for (const auto& [key, value] : _env) {
+		std::string tmp = key + "=" + value;
+		_cgiEnvp.push_back(std::make_unique<char[]>(tmp.length() + 1));
+		std::strcpy(_cgiEnvp.back().get(), tmp.c_str());
+	}
+	_cgiEnvp.push_back(nullptr);
+
+	// Set up _cgiArgv
+	_cgiArgv.clear();
+	_cgiArgv.push_back(std::make_unique<char[]>(ext_path.length() + 1));
+	std::strcpy(_cgiArgv.back().get(), ext_path.c_str());
+
+	_cgiArgv.push_back(std::make_unique<char[]>(_cgiPath.length() + 1));
+	std::strcpy(_cgiArgv.back().get(), _cgiPath.c_str());
+	_cgiArgv.push_back(nullptr);
 }
 
 void CgiHandler::execute() {
-	if (!_cgiArgv[0] || !_cgiArgv[1] || _error_code == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+	if (_cgiArgv.empty() || _cgiEnvp.empty() || _error_code == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return;
 	}
@@ -152,19 +177,27 @@ void CgiHandler::execute() {
 		return;
 	}
 
+	//TODO test TEST TEST MOEDER
+	// Write the body data to stdin
+    if (_env["REQUEST_METHOD"] == "POST") {
+        const std::string& body = _env["HTTP_BODY"];
+        fwrite(body.c_str(), 1, body.size(), inputStream);
+        rewind(inputStream); // Reset file pointer to the beginning
+    }
+
 	// Convert _cgiArgv to char* array
 	std::vector<char*> argv_temp(_cgiArgv.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiArgv.size(); ++i) {
 		argv_temp[i] = _cgiArgv[i].get();
 	}
-	argv_temp[_cgiArgv.size()] = nullptr; // null terminator
+	// argv_temp[_cgiArgv.size()] = nullptr; // null terminator
 
 	// Convert _cgiEnvp to char* array
 	std::vector<char*> envp_temp(_cgiEnvp.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiEnvp.size(); ++i) {
 		envp_temp[i] = _cgiEnvp[i].get();
 	}
-	envp_temp[_cgiEnvp.size()] = nullptr; // null terminator
+	// envp_temp[_cgiEnvp.size()] = nullptr; // null terminator
 
 	_cgiPid = fork();
 	if (_cgiPid == 0) { // Child process
@@ -190,7 +223,6 @@ void CgiHandler::execute() {
 		// If execve returns, there was an error, also how did you even manage to get here?!?
 		std::exit(EXIT_FAILURE);
 	} else if (_cgiPid < 0) {
-		state = 2;
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
 		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 	} else {
@@ -206,7 +238,6 @@ void CgiHandler::execute() {
 		}
 
 		pipeOut.closePipe();
-		state = 2;
 		memset(buffer, 0, sizeof(buffer));
 		dup2(STDIN_FILENO, stdinCopy);
 		fclose(inputStream);
@@ -262,7 +293,7 @@ void CgiHandler::reset() {
 	_cgiEnvp.clear();
 	_cgiArgv.clear();
 	_cgiOutput.clear();
-	state = 0;
+	_error_code = HTTP::StatusCode::Code::NONE;
 }
 
 std::string CgiHandler::getCgiOutput() const {

@@ -17,8 +17,8 @@ class CgiHandler
 		CgiHandler(std::string path);
 		virtual ~CgiHandler();
 
-		void initEnv(HttpRequest& req, const Location &location);
-		void initEnvCgi(HttpRequest& req, const Location &location);
+		void initEnv(Request& req, const Location &location);
+		void initEnvCgi(Request& req, const Location &location);
 		void execute();
 		void reset();
 		std::string setCookie(const std::string cookie_str); //omNomNom.
@@ -34,7 +34,6 @@ class CgiHandler
 
 		std::string getPathInfo(const std::string& path, const std::vector<std::pair<std::string, std::string>>& extensions);
 		std::string decode(std::string &path);
-		int state;
 
 	private:
 		std::unordered_map<std::string, std::string> _env;

@@ -42,6 +42,14 @@ void Location::setRoot(std::string root){
 	if (FileUtils::getTypePath(root) != FileType::DIRECTORY) {
 		throw std::runtime_error("Invalid root path | root of location.");
 	}
+	if (root == "./") {
+		char cwd[PATH_MAX];
+		if (getcwd(cwd, sizeof(cwd)) != NULL) {
+			root = std::string(cwd);
+		} else {
+			throw std::runtime_error("Failed to get current working directory");
+		}
+	}
 	_root = root;
 }
 

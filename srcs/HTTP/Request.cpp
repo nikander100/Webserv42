@@ -1,24 +1,24 @@
 #include "Request.hpp"
 
-HttpRequest::HttpRequest() : 
+Request::Request() : 
 	_state(Start), _method(Method::UNKNOWN), _statusCode(HTTP::StatusCode::Code::NONE), _serverName(""),
 	_path(""), _query(""), _fragment(""), _verMajor(0), _verMinor(0), _contentLength(0),
-	_chunkSize(0), _headers(), _body(""), _boundary(""){
+	_chunkSize(0), _headers(), _body(""), _boundary(""), _multipartReadLength(0), _isMultipart(false), _isChunked(false) {
 }
 
-HttpRequest::~HttpRequest() {
+Request::~Request() {
 }
 
-bool HttpRequest::parsingComplete() const {
+bool Request::parsingComplete() const {
 	return _state == Complete || _statusCode != HTTP::StatusCode::Code::NONE;
 }
 // can possibly be removed
-// bool HttpRequest::parsingComplete() const {
+// bool Request::parsingComplete() const {
 //     return _flagRequestMethodAndHeaderDone && (!_flagBody || _flagBodyDone);
 // }
 
 // checks http uri according to RFC 3986 (Uniform Resource Identifier) -- this s not needed for this project but easy to implement
-bool HttpRequest::isValidUri(const std::string &uri) {
+bool Request::isValidUri(const std::string &uri) {
 	const std::string allowedChars = 
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
@@ -41,7 +41,7 @@ bool HttpRequest::isValidUri(const std::string &uri) {
 	return true;
 }
 
-std::string HttpRequest::decodeUri(const std::string &uri) {
+std::string Request::decodeUri(const std::string &uri) {
 	std::ostringstream decoded;
 	for (size_t i = 0; i < uri.length(); ++i) {
 		if (uri[i] == '%' && i + 2 < uri.length() && isxdigit(uri[i + 1]) && isxdigit(uri[i + 2])) {
@@ -56,7 +56,7 @@ std::string HttpRequest::decodeUri(const std::string &uri) {
 }
 
 // checks http header according to RFC 2616 (HTTP/1.1) tokens are defined in RFC 2616 section 2.2
-bool HttpRequest::isValidToken(const std::string &token) {
+bool Request::isValidToken(const std::string &token) {
 	const std::string allowedChars = 
 		"ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 		"abcdefghijklmnopqrstuvwxyz"
@@ -75,7 +75,7 @@ bool HttpRequest::isValidToken(const std::string &token) {
 //currently up to standard RFC1945
 //new uri is RFC3986 but we only have to comply with the RFC for 
 //http1.0/1.1
-bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename to parserequest
+bool Request::parseRequestLine(const std::string &line) { // possibly rename to parserequest
 	std::regex pattern(R"(^(\w+)\s+(([^?#]*)(\?[^#]*)?(#.*)?)\s+HTTP/(\d)\.(\d)\r?$)");
 	std::smatch match;
 
@@ -103,7 +103,7 @@ bool HttpRequest::parseRequestLine(const std::string &line) { // possibly rename
 	return false;
 }
 
-bool HttpRequest::parseHeader(const std::string &line) {
+bool Request::parseHeader(const std::string &line) {
 	// Check if the string ends with '\r'
 	if (!line.empty() && line.back() == '\r') {
 		// Remove the '\r' character from the end of the string
@@ -137,8 +137,10 @@ bool HttpRequest::parseHeader(const std::string &line) {
 	return false;
 }
 
-bool HttpRequest::handleHeaders(std::istream& stream) {
-	stream.ignore(1); // Skip \r\n
+bool Request::handleHeaders(std::istream& stream) {
+	if (_method != Method::POST && _method != Method::PUT) {
+		stream.ignore(1); // Skip \r\n
+	}
 	if (_headers.find("host") != _headers.end()) {
 		_serverName = _headers["host"];
 	} else {
@@ -153,25 +155,31 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 			return false;
 		}
 		_state = Reading_Chunk_Size;
-	} else if (_headers.find("content-length") != _headers.end()) {
-		try {
-			_contentLength = std::stoul(_headers["content-length"]);
-		} catch (const std::invalid_argument& ia) {
-			DEBUG_PRINT("Invalid content-length: " << ia.what());
-			return false;
-		} catch (const std::out_of_range& oor) {
-			DEBUG_PRINT("Content-length out of range: " << oor.what());
-			return false;
+		} else if (_headers.find("content-length") != _headers.end() || (_headers.find("content-type") != _headers.end() && _headers["content-type"].find("multipart/form-data") != std::string::npos)) {
+		if (_headers.find("content-length") != _headers.end()) {
+			try {
+				_contentLength = std::stoul(_headers["content-length"]);
+			} catch (const std::invalid_argument& ia) {
+				DEBUG_PRINT("Invalid content-length: " << ia.what());
+				return false;
+			} catch (const std::out_of_range& oor) {
+				DEBUG_PRINT("Content-length out of range: " << oor.what());
+				return false;
+			}
 		}
-		_state = Reading_Body_Data;
-	} else if (_headers.find("content-type") != _headers.end() && _headers["content-type"].find("multipart/form-data") != std::string::npos) {
-		size_t pos = _headers["content-type"].find("boundary=");
-		if (pos != std::string::npos) {
-			_boundary = _headers["content-type"].substr(pos + 9);
-		} else {
-			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
-			DEBUG_PRINT("Invalid request: multipart/form-data boundary missing");
-			return false;
+		if (_headers.find("content-type") != _headers.end() && _headers["content-type"].find("multipart/form-data") != std::string::npos) {
+			size_t pos = _headers["content-type"].find("boundary=");
+			if (pos != std::string::npos) {
+				_boundary = _headers["content-type"].substr(pos + 9);
+				DEBUG_PRINT(YELLOW, "Boundary: " << _boundary);
+				_isMultipart = true;
+				_state = Reading_Multipart_Data;
+				return true;
+			} else {
+				_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+				DEBUG_PRINT("Invalid request: multipart/form-data boundary missing");
+				return false;
+			}
 		}
 		_state = Reading_Body_Data; // Or a specific multipart state if needed
 	} else {
@@ -186,7 +194,7 @@ bool HttpRequest::handleHeaders(std::istream& stream) {
 	return true;
 }
 
-bool HttpRequest::parseChunkSize(const std::string &line) {
+bool Request::parseChunkSize(const std::string &line) {
 	std::istringstream hexStream(line);
 
 	// parse input  >> skip whitespaces >> parse hex value >> store in _chunkSize
@@ -198,7 +206,100 @@ bool HttpRequest::parseChunkSize(const std::string &line) {
 	return true;
 }
 
-void HttpRequest::print() const {
+bool Request::parseMultipartData(std::istringstream &stream) {
+	std::string line;
+
+	while (std::getline(stream, line)) {
+		// Remove the trailing \r character
+		if (!line.empty() && line.back() == '\r') {
+			line.pop_back();
+		}
+
+		// Add 2 length for \r\n
+		_multipartReadLength += line.size() + 1;
+
+
+		// Check for boundary
+		if (line == "--" + _boundary) {
+			DEBUG_PRINT(GREEN, "New part");
+			_body += line + "\r\n"; // possibly should be \r or \r\n // Add the boundary line to the body
+			_multipartIsBinary = false;
+			_multipartReadLength += 2; // Account for the \r\n at the end
+		}
+		// Check for end of multipart request
+		else if (line == "--" + _boundary + "--") {
+			DEBUG_PRINT(GREEN, "End of multipart request");
+			_body += line + "\r\n"; // possibly should be \r or \r\n  // Add the final boundary with \r\n
+			_multipartReadLength += 2; // Account for the \r\n at the end
+			_state = Complete;
+		}
+		// Handle (headers) text data
+		else if (!_multipartIsBinary && !line.empty()) {
+			_body += line + "\r\n"; // Possibly add \r\n
+			DEBUG_PRINT(MAGENTA, "Header: " << line);
+
+			// Detect binary data based on the Content-Type header
+			if (line.find("Content-Type: ") != std::string::npos) { // dont care what the content type is..
+				DEBUG_PRINT(MAGENTA, "Content-Type: " << line.substr(line.find(":") + 2));
+				_body += "\r\n"; // Add an extra \r\n
+				_multipartIsBinary = true;
+			}
+
+		}
+		// Handle binary part (file data)
+		else if (_multipartIsBinary) {
+			char buffer[4096];
+			do {
+				stream.read(buffer, sizeof(buffer));
+				std::streamsize bytesRead = stream.gcount();
+				if (bytesRead > 0) {
+					DEBUG_PRINT(MAGENTA, "Read " << bytesRead << " bytes");
+					_multipartReadLength += bytesRead;
+
+					// Check for the boundary in the binary data
+					std::string bufferStr(buffer, bytesRead);
+					size_t boundaryPos = bufferStr.find("--" + _boundary + "--\r\n");
+					if (boundaryPos != std::string::npos) {
+						DEBUG_PRINT(RED, "Found boundary in binary data");
+						_multipartReadLength += 2; // Account for the \r\n at the end
+						_state = Complete;
+						// break;
+					}
+					_body.append(buffer, bytesRead);
+				}
+			} while (stream && stream.gcount() > 0);
+		}
+		// Error handling
+		else {
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+			_state = Complete;
+			DEBUG_PRINT(RED, "Invalid multipart data");
+			return false;
+		}
+
+
+		if (_multipartReadLength > _contentLength) {
+			_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+			_state = Complete;
+			DEBUG_PRINT(RED, "Error: Received more bytes than Content-Length!");
+			return false;
+		}
+
+		if (stream.eof() && _state != Complete) {
+			_state = Part_Complete;
+		}
+	}
+	if (_state == Complete && _multipartReadLength != _contentLength) {
+		_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+		_state = Complete;
+		DEBUG_PRINT(RED, "Error: Mismatch between received bytes and Content-Length!");
+		DEBUG_PRINT(YELLOW, "Content-Length: " << _contentLength << ", Received bytes: " << _multipartReadLength);
+		return false;
+	}
+	return true;
+}
+
+void Request::print() const {
 	std::cout << "Method: " << methodToString(_method) << "\n";
 	std::cout << "Path: " << _path << "\n";
 	std::cout << "Query: " << _query << "\n";
@@ -211,7 +312,7 @@ void HttpRequest::print() const {
 	std::cout << "Body:\n" << _body << "\n";
 }
 
-bool HttpRequest::feed(const std::string &data) {
+bool Request::feed(const std::string &data) {
 	std::istringstream stream(data);
 	std::string line;
 
@@ -261,8 +362,10 @@ bool HttpRequest::feed(const std::string &data) {
 				break;
 			}
 			case Reading_Body_Data: {
-				if (_contentLength > 0 && stream.tellg() + static_cast<std::streamoff>(_contentLength) <= static_cast<std::streamoff>(data.size())) {
-					_body = data.substr(stream.tellg(), _contentLength);
+				std::streamoff currentPos = stream.tellg();
+				std::streamoff dataSize = static_cast<std::streamoff>(data.size());
+				if (_contentLength > 0 && currentPos + static_cast<std::streamoff>(_contentLength) <= dataSize) {
+					_body = data.substr(currentPos, _contentLength);
 					stream.seekg(_contentLength, std::ios::cur); // Move the get pointer forward
 					_state = Complete;
 				} else {
@@ -303,6 +406,18 @@ bool HttpRequest::feed(const std::string &data) {
 				}
 				break;
 			}
+			case Reading_Multipart_Data: {
+				if (!parseMultipartData(stream)) {
+					_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+					DEBUG_PRINT("Invalid multipart data");
+					return false;
+				}
+				break;
+			}
+			case Part_Complete: {
+				_state = Reading_Multipart_Data;
+				return true;
+			}
 			default:
 				_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
 				DEBUG_PRINT("Unknown state");
@@ -318,27 +433,27 @@ bool HttpRequest::feed(const std::string &data) {
 	return true;
 }
 
-const Method &HttpRequest::getMethod() const {
+const Method &Request::getMethod() const {
 	return _method;
 }
 
-const std::string &HttpRequest::getServerName() const {
+const std::string &Request::getServerName() const {
 	return _serverName;
 }
 
-std::string &HttpRequest::getPath() {
+std::string &Request::getPath() {
 	return _path;
 }
 
-std::string &HttpRequest::getQuery() {
+std::string &Request::getQuery() {
 	return _query;
 }
 
-const std::string &HttpRequest::getFragment() const {
+const std::string &Request::getFragment() const {
 	return _fragment;
 }
 
-const std::string &HttpRequest::getHeader(const std::string &key) const {
+const std::string &Request::getHeader(const std::string &key) const {
 	auto it = _headers.find(key);
 	if (it != _headers.end()) {
 		return it->second;
@@ -348,23 +463,23 @@ const std::string &HttpRequest::getHeader(const std::string &key) const {
 	}
 }
 
-std::unordered_map<std::string, std::string> HttpRequest::getHeaders() const {
+std::unordered_map<std::string, std::string> Request::getHeaders() const {
 	return _headers;
 }
 
-const std::string &HttpRequest::getBody() const {
+const std::string &Request::getBody() const {
 	return _body;
 }
 
-const std::string &HttpRequest::getBoundary() const {
+const std::string &Request::getBoundary() const {
 	return _boundary;
 }
 
-HTTP::StatusCode::Code HttpRequest::errorCode() const {
+HTTP::StatusCode::Code Request::errorCode() const {
 	return _statusCode;
 }
 
-bool HttpRequest::keepAlive() const {
+bool Request::keepAlive() const {
 	if (_verMajor == 1 && _verMinor == 1) {
 		if (_headers.find("connection") != _headers.end()) {
 			if (_headers.at("connection") == "close") {
@@ -382,19 +497,25 @@ bool HttpRequest::keepAlive() const {
 	return false;
 }
 
-void HttpRequest::reset() {
-	_state = Start;
-	_method = Method::UNKNOWN;
-	_statusCode = HTTP::StatusCode::Code::NONE;
-	_serverName.clear();
-	_path.clear();
-	_query.clear();
-	_fragment.clear();
-	_verMajor = 0;
-	_verMinor = 0;
-	_contentLength = 0;
-	_chunkSize = 0;
-	_headers.clear();
-	_body.clear();
-	_boundary.clear();
+void Request::reset() {
+	// Only reset if the request is not multipart or chunked, or if it is complete
+	if (_state == Complete) {
+		_state = Start;
+		_method = Method::UNKNOWN;
+		_statusCode = HTTP::StatusCode::Code::NONE;
+		_serverName.clear();
+		_path.clear();
+		_query.clear();
+		_fragment.clear();
+		_verMajor = 0;
+		_verMinor = 0;
+		_contentLength = 0;
+		_chunkSize = 0;
+		_headers.clear();
+		_body.clear();
+		_boundary.clear();
+		_isMultipart = false; // Reset the multipart flag
+		_isChunked = false; // Reset the chunked flag
+		_multipartReadLength = 0; // Reset the multipart read length
+	}
 }

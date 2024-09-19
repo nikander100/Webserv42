@@ -4,14 +4,14 @@
 HttpResponse::HttpResponse(Server &server, int clientFd) : _server(server), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 }
 
-HttpResponse::HttpResponse(Server &server, HttpRequest &request, int clientFd) : _server(server), _request(request), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
+HttpResponse::HttpResponse(Server &server, Request &request, int clientFd) : _server(server), _request(request), _clientFd(clientFd), _targetFile(""), _location(""), _cgi(0), _autoIndex(false) {
 	request.print();
 }
 
 HttpResponse::~HttpResponse() {
 }
 
-void HttpResponse::setRequest(HttpRequest &request) {
+void HttpResponse::setRequest(Request &request) {
 	_request = request;
 }
 
@@ -28,6 +28,14 @@ void HttpResponse::appendContentTypeHeader() {
 	// Get file path and extract extension
 	// std::string path = _request.getPath();
 	std::string path = _targetFile;
+
+	// Check if the response is from a CGI script
+	if (path.empty() && _cgi) {
+		// Set Content-Type based on CGI output or default to text/html
+		std::string mimeType = "text/html"; // Default MIME type for CGI responses
+		_responseHeader.append("Content-Type: " + mimeType + "\r\n");
+		return;
+	}
 
 	std::string extension = path.rfind('.') != std::string::npos ? path.substr(path.rfind('.')) : "";
 	extension = (_autoIndex && path.back() == '/') ? ".html" : extension;
@@ -75,13 +83,20 @@ void HttpResponse::appendDateHeader() {
 
 
 void HttpResponse::setHeaders() {
-	// Add necessary headers to the response header
-	appendContentTypeHeader();
-	appendContentLengthHeader();
-	appendConnectionTypeHeader();
-	appendServerHeader();
-	appendLocationHeader();
-	appendDateHeader();
+	if (_cgi) {
+		appendServerHeader();
+		appendDateHeader();
+		appendConnectionTypeHeader();
+		appendContentLengthHeader();
+	} else {
+		// Add necessary headers to the response header
+		appendContentTypeHeader();
+		appendContentLengthHeader();
+		appendConnectionTypeHeader();
+		appendServerHeader();
+		appendLocationHeader();
+		appendDateHeader();
+	}
 
 	// Add a blank line to separate the headers from the body
 	_responseHeader.append("\r\n");
@@ -103,6 +118,10 @@ size_t HttpResponse::getResponseBodyLength() {
 }
 
 void HttpResponse::setStatus() {
+	if (_cgi && (_statusCode == HTTP::StatusCode::Code::OK || _statusCode == HTTP::StatusCode::Code::NONE ) ) {
+		return;
+	}
+	_responseHeader.clear();
 	_responseHeader.append("HTTP/1.1 " + std::to_string(static_cast<int>(_statusCode)) + " ");
 	_responseHeader.append(HTTP::StatusCode::ToString(_statusCode) + "\r\n");
 }
@@ -154,20 +173,33 @@ std::string HttpResponse::combinePaths(const std::string &path1, const std::stri
 	return result;
 }
 
-bool HttpResponse::handleCgiTemp(Location &location) {
-	std::string path = _targetFile;
-	// cgiHandler.reset();
-	// cgiHandler.setCgiPath(path);
-	_cgi = 1;
-	// cgiHandler.initEnvCgi(_request, location);
-	// cgiHandler.execute(_statusCode, _clientFd);
-	if (_statusCode == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
+bool HttpResponse::checkAndSetStatusCode(CgiHandler& cgiHandler) {
+	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		_statusCode = cgiHandler.getStatusCode();
+		_cgi = 0;
 		return false;
 	}
 	return true;
 }
 
-bool HttpResponse::handleCgi(Location &location) {
+bool HttpResponse::handleCgiTemp(Location &location) {
+	std::string path = _targetFile;
+	cgiHandler.reset();
+	cgiHandler.setCgiPath(path);
+	_cgi = 1;
+	cgiHandler.initEnv(_request, location);
+	if (!checkAndSetStatusCode(cgiHandler)) {
+		return false;
+	}
+	cgiHandler.execute();
+	if (!checkAndSetStatusCode(cgiHandler)) {
+		return false;
+	}
+	return true;
+}
+
+// TODO rename to processCgi
+bool HttpResponse::executeCgi(Location &location) {
 	std::string path = _request.getPath().erase(0, _request.getPath().find_first_not_of('/'));
 	if (path == "cgi-bin") {
 		path = combinePaths(path, location.getIndex());
@@ -213,14 +245,37 @@ bool HttpResponse::handleCgi(Location &location) {
 	cgiHandler.setCgiPath(path);
 	_cgi = 1;
 	cgiHandler.initEnv(_request, location);
-	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+	if (!checkAndSetStatusCode(cgiHandler)) {
 		return false;
 	}
 	cgiHandler.execute();
-	if (cgiHandler.getStatusCode() == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) { // Would be better practice to check for OK or NONE but as only error that could be returned fron the handler is 500 its simpler to check against that.
+	if (!checkAndSetStatusCode(cgiHandler)) {
 		return false;
 	}
 
+	return true;
+}
+
+bool HttpResponse::buildCgiBody() {
+	// Read cgi output
+	std::string cgiOutput = cgiHandler.getCgiOutput();
+
+	// Extract headers and body from CGI output
+	size_t headerEnd = cgiOutput.find("\r\n\r\n");
+	if (headerEnd != std::string::npos) {
+		std::string cgiHeaders = cgiOutput.substr(0, headerEnd + 2);
+		_responseHeader.append(cgiHeaders);
+
+		// Extract the body from the CGI output
+		std::string cgiBody = cgiOutput.substr(headerEnd + 4);
+		_responseBody.assign(cgiBody.begin(), cgiBody.end());
+	} else {
+		// If no headers are found, treat the entire output as the body
+		_responseBody.assign(cgiOutput.begin(), cgiOutput.end());
+	}
+
+	std::string responsebody = std::string(_responseBody.begin(), _responseBody.end());
+	DEBUG_PRINT(GREEN, "Response body: " + responsebody);
 	return true;
 }
 
@@ -260,7 +315,7 @@ bool HttpResponse::handleTarget() {
 
 		//handle cgi
 		if (location.isCgiPath()) {
-			return handleCgi(location);
+			return executeCgi(location);
 		}
 
 		//handle alias
@@ -285,7 +340,6 @@ bool HttpResponse::handleTarget() {
 				}
 			}
 		}
-
 		// check if target is a directory
 		if (FileUtils::getTypePath(_targetFile) == FileType::DIRECTORY) {
 			if (_targetFile.back() != '/') {
@@ -399,6 +453,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 						size_t end = buffer.find("\"", start + 10);
 						if (end != std::string::npos)
 							filename = buffer.substr(start + 10, end - (start + 10));
+							_targetFile= filename;
 					}
 				} else if (!buffer.compare(0, 1, "\r") && !filename.empty()) {
 					is_boundary = false;
@@ -408,7 +463,7 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 				if (!buffer.compare("--" + boundary + "\r")) {
 					is_boundary = true;
 				} else if (!buffer.compare("--" + boundary + "--\r")) {
-					new_body.erase(new_body.end() - 1);
+					new_body.erase(new_body.end() - 1); // maybe should be -2
 					break;
 				} else {
 					new_body += (buffer + "\n");
@@ -424,7 +479,11 @@ bool HttpResponse::buildBody() {
 		return false;
 	}
 
-	if (_cgi || _autoIndex) {
+	if (_cgi) {
+		return buildCgiBody();
+	}
+
+	if (_autoIndex) {
 		return true;
 	}
 
@@ -436,28 +495,42 @@ bool HttpResponse::buildBody() {
 		if (!readFile()) {
 			return false;
 		}
+		_statusCode = HTTP::StatusCode::Code::OK;
+		return true;
 	}
 	else if (_request.getMethod() == Method::POST || _request.getMethod() == Method::PUT) {
-		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
-			_statusCode = HTTP::StatusCode::Code::FORBIDDEN;
-			return true;
+		std::string tempBody;
+		if (!_request.getBoundary().empty()) {
+			tempBody = _request.getBody();
+			tempBody = removeBoundary(tempBody, _request.getBoundary());
 		}
+		// TODO je moeder hier handle upload path to server root/upload + make header property for that path.
+		// TODO je vader hier test bigger file upload...
 
-		std::ofstream fout(_targetFile, std::ios::binary);
-		if (!fout) {
+		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
+		_targetFile = uploadPath.string();
+
+		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
 			_statusCode = HTTP::StatusCode::Code::FORBIDDEN;
 			return false;
 		}
 
+		std::ofstream fout(_targetFile, std::ios::binary);
+		if (!fout) {
+			DEBUG_PRINT(RED, "Failed to open file for writing: " + _targetFile);
+			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			return false;
+		}
+
 		if (!_request.getBoundary().empty()) {
-			std::string tempBody = _request.getBody();
-			tempBody = removeBoundary(tempBody, _request.getBoundary());
 			fout.write(tempBody.c_str(), tempBody.length());
 		}
 		else{
 			fout.write(_request.getBody().c_str(), _request.getBody().length());
 		}
-
+		fout.close();
+		_statusCode = HTTP::StatusCode::Code::CREATED;
+		return true;
 	}
 	else if (_request.getMethod() == Method::DELETE) {
 		if (!FileUtils::isFileExistAndReadable(_targetFile, "")) {
@@ -468,13 +541,23 @@ bool HttpResponse::buildBody() {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 			return false;
 		}
+		_statusCode = HTTP::StatusCode::Code::NO_CONTENT;
+		return true;
 	}
-	_statusCode = HTTP::StatusCode::Code::OK;
-	return true;
+	_statusCode = HTTP::StatusCode::Code::METHOD_NOT_ALLOWED;
+	return false;
 }
 
-bool HttpResponse::readFile() { // TODO remove debug
-	DEBUG_PRINT(GREEN, "path " + _targetFile);
+bool HttpResponse::readFile() {
+	// if request doesnt have an extension, and is not a directory, add .html
+	if (!std::filesystem::exists(_targetFile) || !std::filesystem::is_regular_file(_targetFile)) {
+		// If the file does not exist and does not have an extension, append .html
+		std::filesystem::path path(_targetFile);
+		if (!path.has_extension()) {
+			_targetFile.append(".html");
+		}
+	}
+
 	std::ifstream fin(_targetFile, std::ios::binary | std::ios::ate);
 	if (!fin) {
 		_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
@@ -524,12 +607,14 @@ void HttpResponse::buildErrorBody() {
 		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 	}
 	else { // custom
+		// HTTP::StatusCode::Code tmpCode; //TODO
 		if (_statusCode >= HTTP::StatusCode::Code::BAD_REQUEST && _statusCode < HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 			_location = errorPageResult.second;
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
-			_statusCode = HTTP::StatusCode::Code::FOUND;
+			// tmpCode = _statusCode; //TODO
+			_statusCode = HTTP::StatusCode::Code::FOUND; //possibly needed. but for bette rpractice should be removed..
 		}
 
 		_targetFile = combinePaths(_server.getRoot(), _location);
@@ -538,6 +623,7 @@ void HttpResponse::buildErrorBody() {
 			_statusCode = oldCode;
 			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 		}
+		// _statusCode = tmpCode; //TODO
 	}
 }
 
@@ -640,9 +726,7 @@ void HttpResponse::buildResponse() {
 	if (!requestIsSuccessful() || !buildBody()) {
 		buildErrorBody();
 	}
-	if (_cgi) {
-		return;
-	}
+	// TODO je moeder cgi correct handling
 	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
@@ -657,7 +741,7 @@ void HttpResponse::buildResponse() {
 	setStatus();
 	setHeaders();
 
-	if (_request.getMethod() != Method::HEAD && (_request.getMethod() == Method::GET || _statusCode != HTTP::StatusCode::Code::OK)) {
+	if (_request.getMethod() != Method::HEAD) {
 		_responseContent.insert(_responseContent.end(), _responseBody.begin(), _responseBody.end());
 	}
 }

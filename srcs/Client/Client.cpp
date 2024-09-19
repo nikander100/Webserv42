@@ -44,7 +44,7 @@ void Client::close() {
 	_socket->close();
 }
 
-HttpRequest &Client::getRequest() {
+Request &Client::getRequest() {
 	return _request;
 }
 

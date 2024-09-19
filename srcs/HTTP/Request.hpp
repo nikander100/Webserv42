@@ -10,18 +10,18 @@
  */
 enum State {
 	Start, Method_Line_Parsed, Header_Parsed, Reading_Body_Data, Reading_Chunk_Size,
-	Reading_Chunk_Data, Complete
+	Reading_Chunk_Data, Reading_Multipart_Data, Part_Complete, Complete
 };
 
 /* 
-	HttpRequest Class will be used to parase and store the request. 
+	Request Class will be used to parase and store the request. 
 	It gets feeded with the request and will flip a flag when parasing is finished.
 */
-class HttpRequest
+class Request
 {
 	public:
-		HttpRequest();
-		virtual ~HttpRequest();
+		Request();
+		virtual ~Request();
 
 		bool feed(const std::string &data);
 		bool parsingComplete() const;
@@ -55,8 +55,9 @@ class HttpRequest
 		std::unordered_map<std::string, std::string> _headers;
 		std::string _body;
 		std::string _boundary;
-		// std::vector<std::string> _bodyChunks;
-		// std::vector<u_int8_t> body;
+		size_t _multipartReadLength;
+		bool _isMultipart;
+		bool _isChunked;
 
 		bool isValidUri(const std::string &uri);
 		std::string decodeUri(const std::string &uri);
@@ -64,6 +65,7 @@ class HttpRequest
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		bool handleHeaders(std::istream &stream);
-		// void parseBodyData(const std::string &data, size_t &pos);
+		bool parseMultipartData(std::istringstream &stream);
+		bool _multipartIsBinary;
 		bool parseChunkSize(const std::string &line);
 };
