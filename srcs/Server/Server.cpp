@@ -182,21 +182,16 @@ void Server::setErrorPages(const std::vector<std::string> &error_pages) {
 
 // set a specific error page
 void Server::setErrorPage(HTTP::StatusCode::Code key, std::string path) {
+	namespace fs = std::filesystem;
 	if (key < HTTP::StatusCode::Code::CONTINUE || key > HTTP::StatusCode::Code::NETWORK_AUTHENTICATION_REQUIRED) { // possibly check to 600 but there are no used codes above 511
 		throw std::invalid_argument("Invalid HTTP status code");
 	}
-
 	checkInput(path);
-
 	//check if file exists
-	if (FileUtils::getTypePath(path) != FileType::DIRECTORY) {
-		if (FileUtils::getTypePath(_root + path) != FileType::FILE) {
-			throw std::invalid_argument("Incorrect path for error page file: " + _root + path);
-		}
-		if (FileUtils::checkFile(_root + path) == -1) {
-			throw std::invalid_argument("Error page file :" + _root + path + " is not accessible");
-		}
-	}
+	fs::path filePath = _root + path;
+    if (!fs::exists(filePath) || !fs::is_regular_file(filePath)) {
+        throw std::invalid_argument("Error page file is not accessible or does not exist: " + filePath.string());
+    }
 
 	_errorPages[key] = path;
 
@@ -267,15 +262,12 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 	std::regex autoindexRegex(R"(autoindex\s+(on|off);)");
 	std::regex indexRegex(R"(index\s+(.+);)");
 	std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
-	// std::regex cgiExtRegex(R"(cgi_ext\s+(([^;\s]+)\s*)+;)");
 	std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+(\s+[^;\s]+)*)\s*);)");
-	// std::regex cgiPathRegex(R"(cgi_path\s+(([^;\s]+)\s*)+;)");
 	std::regex returnRegex(R"(return\s+(.+);)");
 	std::regex aliasRegex(R"(alias\s+(.+);)");
 	std::regex clientMaxBodySizeRegex(R"(client_max_body_size\s+(.+);)");
 			// std::cout << cgiExt.first << "		: what??\n"; //THIS ONE NEEDS TO BE GONE!!!-------------------------------------------------------------------------------------------------
 
-	// checkInput(path);
 	newLocation.setPath(path);
 	
 	// first pass 
@@ -287,7 +279,12 @@ void Server::setLocation(std::string &path, std::vector<std::string> &parsedLoca
 			if (FileUtils::getTypePath(match[1]) == FileType::DIRECTORY) {
 				newLocation.setRoot(match[1]);
 			} else {
-				newLocation.setRoot(_root + match[1].str());
+				std::string_view tmpRoot = match[1].str();
+				if (tmpRoot.starts_with("/")) {
+					tmpRoot.remove_prefix(1);
+				}
+
+				newLocation.setRoot(_root + std::string(tmpRoot));
 			}
 			
 		} else if (std::regex_search(line, match, methodRegex)) {

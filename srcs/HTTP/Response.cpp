@@ -607,23 +607,20 @@ void HttpResponse::buildErrorBody() {
 		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 	}
 	else { // custom
-		// HTTP::StatusCode::Code tmpCode; //TODO
 		if (_statusCode >= HTTP::StatusCode::Code::BAD_REQUEST && _statusCode < HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 			_location = errorPageResult.second;
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
-			// tmpCode = _statusCode; //TODO
-			_statusCode = HTTP::StatusCode::Code::FOUND; //possibly needed. but for bette rpractice should be removed..
 		}
 
 		_targetFile = combinePaths(_server.getRoot(), _location);
-		HTTP::StatusCode::Code oldCode = _statusCode;
 		if (!readFile()) {
-			_statusCode = oldCode;
-			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
+			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			_responseBody.clear();
+			std::string ise = HTTP::BuiltinErrorPages::getInternalPage(_statusCode);
+			_responseBody.assign(ise.begin(), ise.end());
 		}
-		// _statusCode = tmpCode; //TODO
 	}
 }
 

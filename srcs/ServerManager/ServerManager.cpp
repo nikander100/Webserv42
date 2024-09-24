@@ -77,10 +77,8 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 	fusionWebServer->setRoot(root3);
 	std::string index3 = "index.html;";
 	fusionWebServer->setIndex(index3); 
-	std::string cmbs3 = "3000000;";
+	std::string cmbs3 = "33554432;";
 	fusionWebServer->setClientMaxBodySize(cmbs3);
-	std::string ep3 = "error_pages/404.html;";
-	fusionWebServer->setErrorPage(HTTP::StatusCode::Code::NOT_FOUND, ep3);
 	
 	std::vector<std::string> location_settings_root = {
 		"allow_methods DELETE POST GET;",
@@ -113,6 +111,8 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 	std::string locationPath_cgi_bin = "/cgi-bin";
 	fusionWebServer->setLocation(locationPath_cgi_bin, location_settings_cgi_bin);
 	
+	std::string ep3 = "error_pages/404.html;";
+	fusionWebServer->setErrorPage(HTTP::StatusCode::Code::NOT_FOUND, ep3);
 	// Add the fusionWebServer to the vector
 	_servers.push_back(std::move(fusionWebServer));
 
