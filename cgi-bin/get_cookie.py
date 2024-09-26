@@ -1,6 +1,10 @@
 import os
 from http import cookies
 import cgi, cgitb
+import time
+
+# Add a delay to test cgi execution tomeout
+# time.sleep(15)
 
 cgitb.enable()
 

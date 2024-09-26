@@ -127,22 +127,23 @@ void HttpResponse::setStatus() {
 }
 
 std::string HttpResponse::getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations) {
-	size_t biggest_match = 0;
-	std::string bestMatch;
+    size_t biggest_match = 0;
+    std::string bestMatch;
 
-	for (const auto &pair : locations) {
-		const std::string &locPath = pair.first;
-		if (path.find(locPath) == 0) {
-			if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/') {
-				if (locPath.length() > biggest_match) {
-					biggest_match = locPath.length();
-					bestMatch = locPath;
-				}
-			}
-		}
-	}
+    for (const auto &pair : locations) {
+        const std::string &locPath = pair.first;
+        if (path.find(locPath) == 0) {
+            // Ensure that the match is valid by checking the character after the match
+            if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/' || locPath.back() == '/') {
+                if (locPath.length() > biggest_match) {
+                    biggest_match = locPath.length();
+                    bestMatch = locPath;
+                }
+            }
+        }
+    }
 
-	return bestMatch; // Return the best match found
+    return bestMatch; // Return the best match found
 }
 
 std::string HttpResponse::combinePaths(const std::string &path1, const std::string &path2, const std::string &path3){
@@ -229,7 +230,7 @@ bool HttpResponse::executeCgi(Location &location) {
 		return false;
 	}
 
-	// Check if the file
+	// Check if the file is read and executable
 	if (FileUtils::checkFile(path, W_OK | X_OK) == -1) {
 		_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
 		return false;
@@ -303,13 +304,22 @@ bool HttpResponse::handleTarget() {
 		// a permanent redirection and prepend a slash to the location if it's missing.
 		if (!location.getReturn().empty()) {
 			_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY; // Indicate permanent redirection
-			_location = location.getReturn();
+			std::string originalPath = _request.getPath();
+            std::string newLocation = location.getReturn();
 
-			// Ensure the location starts with a slash for consistency
-			if (_location.front() != '/') {
-				_location.insert(_location.begin(), '/');
+			if (newLocation.rfind("http", 0) != 0) {
+				// Ensure the location starts with a slash for consistency
+				if (newLocation.front() != '/') {
+					newLocation.insert(newLocation.begin(), '/');
+				}
+	
+				// Append the sub-path from the original request to the new location
+				if (originalPath.length() > locationKey.length()) {
+					newLocation += originalPath.substr(locationKey.length());
+				}
 			}
 
+            _location = newLocation;
 			return false; // Indicate that the response should not proceed as normal
 		}
 
@@ -320,10 +330,12 @@ bool HttpResponse::handleTarget() {
 
 		//handle alias
 		if (!location.getAlias().empty()) {
-			_targetFile = combinePaths(location.getAlias(), _request.getPath().substr(location.getPath().length()));
-		}
-		else {
-			_targetFile = combinePaths(location.getRoot(), _request.getPath());
+    	// Extract the part of the request path that comes after the location prefix
+    		std::string relativePath = _request.getPath().substr(location.getPath().length());
+   		// Combine the alias path with the extracted relative path
+    		_targetFile = combinePaths(location.getAlias(), relativePath);
+		} else {
+    		_targetFile = combinePaths(location.getRoot(), _request.getPath());
 		}
 
 		// Retrieve the CGI path and extension configurations for the target location
@@ -345,14 +357,20 @@ bool HttpResponse::handleTarget() {
 			if (_targetFile.back() != '/') {
 				_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY;
 				_location = _request.getPath() + "/";
-				return false;
+				// return false;
 			}
 
 			// Append the index file to the target file if it's a directory
 			if (!location.getIndex().empty()) {
+				if (_targetFile.back() != '/') {
+					_targetFile.append("/");
+				}
 				_targetFile += location.getIndex();
 			}
 			else {
+				if (_targetFile.back() != '/') {
+					_targetFile.append("/");
+				}
 				_targetFile += _server.getIndex();
 			}
 
@@ -504,8 +522,6 @@ bool HttpResponse::buildBody() {
 			tempBody = _request.getBody();
 			tempBody = removeBoundary(tempBody, _request.getBoundary());
 		}
-		// TODO je moeder hier handle upload path to server root/upload + make header property for that path.
-		// TODO je vader hier test bigger file upload...
 
 		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
 		_targetFile = uploadPath.string();

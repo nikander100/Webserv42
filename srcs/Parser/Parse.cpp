@@ -15,7 +15,7 @@ void	Parse::commentsFilter()
 	for (std::string& lines : _raw_conf_file)
 	{
 		size_t endpos = std::string::npos;
-		size_t one = lines.find("//");
+		size_t one = lines.find("///");
 		size_t two = lines.find("#");
 
 		if (one != std::string::npos && two != std::string::npos)
@@ -264,7 +264,7 @@ void Parse::setServers() {
 			} else if (str.find("listen") != std::string::npos) {
 				_setServerString = str.substr(str.find("listen") + 6);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-				if (server->getPort() != "8727")	//change this to empty string ""
+				if (server->getPort() != "0")	//change this to empty string ""
 					throw std::runtime_error("port again?\n");
 				server->setPort(_setServerString);
 			} else if (str.find("client_max_body_size") != std::string::npos) {
@@ -291,14 +291,15 @@ void Parse::setServers() {
 				if (!server->getErrorPage(status).first)
 					throw std::invalid_argument("error Page set double\n");
 				std::string temp = extractPath(error_page, "error_pages/", ";");
+				temp.append(";");
 				server->setErrorPage(status, temp);
 			} else if (str.find("location") != std::string::npos){
 				std::string temp = extractPath(str, "/", "{");
 				locationPaths(temp);
 				_locationPaths.push_back(temp);
 				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
-				if (!std::filesystem::exists("."+temp))
-					throw std::invalid_argument("invalid Location\n" + temp + "\n");
+				// if (!std::filesystem::exists("."+temp))
+				// 	throw std::invalid_argument("invalid Location\n" + temp + "\n");
 				handleLocations(temp, *server, it, vec);
 			}
 			_setServerString.clear();

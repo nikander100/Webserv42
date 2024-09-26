@@ -179,28 +179,32 @@ void CgiHandler::execute() {
 
 	//TODO test TEST TEST MOEDER
 	// Write the body data to stdin
-    if (_env["REQUEST_METHOD"] == "POST") {
-        const std::string& body = _env["HTTP_BODY"];
-        fwrite(body.c_str(), 1, body.size(), inputStream);
-        rewind(inputStream); // Reset file pointer to the beginning
-    }
+	if (_env["REQUEST_METHOD"] == "POST") {
+		const std::string& body = _env["HTTP_BODY"];
+		fwrite(body.c_str(), 1, body.size(), inputStream);
+		rewind(inputStream); // Reset file pointer to the beginning
+	}
 
 	// Convert _cgiArgv to char* array
 	std::vector<char*> argv_temp(_cgiArgv.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiArgv.size(); ++i) {
 		argv_temp[i] = _cgiArgv[i].get();
 	}
-	// argv_temp[_cgiArgv.size()] = nullptr; // null terminator
 
 	// Convert _cgiEnvp to char* array
 	std::vector<char*> envp_temp(_cgiEnvp.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiEnvp.size(); ++i) {
 		envp_temp[i] = _cgiEnvp[i].get();
 	}
-	// envp_temp[_cgiEnvp.size()] = nullptr; // null terminator
+
+	signal(SIGALRM, [](int signum) {
+	DEBUG_PRINT(RED, "CGI script timed out");
+	std::exit(EXIT_FAILURE);
+	});
 
 	_cgiPid = fork();
 	if (_cgiPid == 0) { // Child process
+		alarm(CGI_TIMEOUT);  //
 		if(dup2(pipeOut.write_fd, STDOUT_FILENO) == -1) {
 			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "dup2 failed somehting is majorly wrong with your system, i'd suggest you to seek help from a professional");
 			std::exit(EXIT_FAILURE);
@@ -226,23 +230,37 @@ void CgiHandler::execute() {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
 		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 	} else {
-		waitpid(_cgiPid, NULL, -1);
-		pipeOut.closeWrite();
-		_cgiOutput.clear();
+		int status;
+		waitpid(_cgiPid, &status, 0);
+		alarm(0);  // Cancel the alarm
 
-		while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
-			std::ostringstream oss;
-			oss << std::dec << buffer;
-			_cgiOutput += oss.str();
+		// Reset signal handler to default
+		signal(SIGALRM, SIG_DFL);
+
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			DEBUG_PRINT(RED, "CGI script failed to execute");
+		} else if (WIFSIGNALED(status)) {
+			_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			DEBUG_PRINT(RED, "CGI script took too long to execute");
+		} else {
+			pipeOut.closeWrite();
+			_cgiOutput.clear();
+
+			while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
+				std::ostringstream oss;
+				oss << std::dec << buffer;
+				_cgiOutput += oss.str();
+				memset(buffer, 0, sizeof(buffer));
+			}
+
+			pipeOut.closePipe();
 			memset(buffer, 0, sizeof(buffer));
+			dup2(STDIN_FILENO, stdinCopy);
+			fclose(inputStream);
+			close(stdinCopy);
+			close(fdin);
 		}
-
-		pipeOut.closePipe();
-		memset(buffer, 0, sizeof(buffer));
-		dup2(STDIN_FILENO, stdinCopy);
-		fclose(inputStream);
-		close(stdinCopy);
-		close(fdin);
 	}
 }
 

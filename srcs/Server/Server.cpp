@@ -493,7 +493,7 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 			}
 		}
 		if (!location.getAlias().empty()) {
-			if (FileUtils::isFileExistAndReadable(location.getRoot(), location.getAlias())) {
+			if (FileUtils::getTypePath(location.getAlias()) != FileType::DIRECTORY) {
 				return CgiValidation::FAILED_ALIAS_VALIDATION;
 			}
 		}

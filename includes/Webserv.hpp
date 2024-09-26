@@ -44,6 +44,7 @@
 // Custom Defines
 
 constexpr int64_t CONNECTION_TIMEOUT = 60; // 1 minute.
+constexpr int64_t CGI_TIMEOUT = 10; // 10 seconds.
 
 // Default value for the maximum size of the request body.
 // constexpr size_t MAX_CONTENT_SIZE = 33554432; // 32MB
