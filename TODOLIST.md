@@ -1,4 +1,4 @@
-	errorpages check how to fix css file getting when going topaage directly? appends double path /error_pages/error_pages when getting the css file on direct access. GET http://localhost:8004/error_pages/error_pages/main.css
+
 	make server upload directories on server statrup. if not existing.
 	CGI: add timeout. 
 	fix website and cgi code.
