@@ -538,6 +538,8 @@ void Server::setupServer() {
 		_socket.initialize(AF_INET, SOCK_STREAM, 0, SOL_SOCKET, SO_REUSEADDR, SOMAXCONN, _host, _port);
 		// Add server socket to epoll
 		EpollManager::getInstance().addToEpoll(_socket.getFd(), EPOLLIN);
+
+		// TODO make upload dir at rootpath + /UPLOAD_DIR
 	} catch (const std::runtime_error& e) {
 		DEBUG_PRINT(RED, "Server::setupServer: " << e.what());
 		exit(EXIT_FAILURE);

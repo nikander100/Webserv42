@@ -1,6 +1,10 @@
 #include "ServerManager.hpp"
 
 ServerManager::ServerManager(): _running(false) {
+	// TODO make cgi-bin dir at runpath + /CGI_BIN_DIR
+	// TODO make session dir at runpath + /CGI_SESSION_DIR
+	// TODO make tmp dir at runpath + /TMP_DIR
+	// TODO pull all cgi-bin files from repo, give perms and put them in cgi-bin dir
 }
 
 ServerManager::~ServerManager() {
