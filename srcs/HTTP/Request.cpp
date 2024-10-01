@@ -171,7 +171,6 @@ bool Request::handleHeaders(std::istream& stream) {
 			size_t pos = _headers["content-type"].find("boundary=");
 			if (pos != std::string::npos) {
 				_boundary = _headers["content-type"].substr(pos + 9);
-				DEBUG_PRINT(YELLOW, "Boundary: " << _boundary);
 				_isMultipart = true;
 				_state = Reading_Multipart_Data;
 				return true;
@@ -220,24 +219,20 @@ bool Request::handleTextData(std::istringstream &stream) {
 
 	// Check for boundary
 	if (line == "--" + _boundary + "\r\n") {
-		DEBUG_PRINT(GREEN, "New part");
 		_body += line; // Add the boundary line to the body
 		_multipartIsBinary = false;
 	}
 	// Check for end of multipart request
 	else if (line == "--" + _boundary + "--\r\n") {
-		DEBUG_PRINT(GREEN, "End of multipart request");
 		_body += line; // Add the final boundary with \r\n
 		_state = Complete;
 	}
 	// Handle (headers) text data
 	else if (!line.empty()) {
 		if (line == "\r\n") {
-			DEBUG_PRINT(MAGENTA, "END OF HEADERS");
 			_multipartIsBinary = true;
 		}
 		_body += line; // Add the line to the body
-		DEBUG_PRINT(MAGENTA, "Header: " << line);
 	}
 	// Error handling
 	else {
@@ -257,7 +252,6 @@ bool Request::handleBinaryData(std::istringstream &stream) {
 	stream.read(buffer, sizeof(buffer));
 	std::streamsize bytesRead = stream.gcount();
 	if (bytesRead > 0) {
-		DEBUG_PRINT(MAGENTA, "Read " << bytesRead << " bytes");
 		_multipartReadLength += bytesRead;
 
 		// Check for the boundary in the binary data
@@ -265,7 +259,6 @@ bool Request::handleBinaryData(std::istringstream &stream) {
 		size_t boundaryPos = bufferStr.find("--" + _boundary + "--\r\n");
 		_body.append(buffer, bytesRead);
 		if (boundaryPos != std::string::npos) {
-			DEBUG_PRINT(RED, "Found boundary in binary data");
 			_multipartIsBinary = false;
 			_state = Complete;
 			return true;

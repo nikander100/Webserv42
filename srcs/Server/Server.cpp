@@ -690,7 +690,6 @@ void Server::checkClientTimeouts() {
 		auto lastRequestTime = client.getLastRequestTime();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(now - lastRequestTime).count();
 
-		// DEBUG_PRINT(MAGENTA, "Client: " << inet_ntoa(client.getAddress().sin_addr) << ":" << client.getFd() << " last request time: " << duration);
 		if (duration > CONNECTION_TIMEOUT) {
 			DEBUG_PRINT(BLUE, "Client timed out: " << inet_ntoa(client.getAddress().sin_addr));
 			it = _clients.erase(it);

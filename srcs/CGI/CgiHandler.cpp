@@ -53,7 +53,6 @@ void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	// Set CGI ENV variables.
 	if (req.getMethod() == Method::POST) {
 		_env["CONTENT_LENGTH"] = std::to_string(req.getBody().size());
-		// Logger::logMsg(DEBUG, CONSOLE_OUTPUT, "Content-Length Passed to cgi is %s", _env["CONTENT_LENGTH"].c_str());
 		_env["CONTENT_TYPE"] = req.getHeader("content-type");
 	}
 	_env["GATEWAY_INTERFACE"] = "CGI/1.1";

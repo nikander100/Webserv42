@@ -19,7 +19,7 @@ void ClientSocket::send(const std::string &data) {
 			} */
 		}
 		totalBytesSent += bytesSent;
-		DEBUG_PRINT(YELLOW, "Total bytes sent: " << totalBytesSent);
+		// DEBUG_PRINT(YELLOW, "Total bytes sent: " << totalBytesSent);
 	}
 }
 

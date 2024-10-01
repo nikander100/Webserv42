@@ -281,7 +281,6 @@ bool HttpResponse::buildCgiBody() {
 	}
 
 	std::string responsebody = std::string(_responseBody.begin(), _responseBody.end());
-	DEBUG_PRINT(GREEN, "Response body: " + responsebody);
 	return true;
 }
 
@@ -540,7 +539,6 @@ bool HttpResponse::buildBody() {
 		}
 
 		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
-		DEBUG_PRINT("Upload path: " + uploadPath.string());
 		_targetFile = uploadPath.string();
 
 		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
@@ -606,21 +604,6 @@ bool HttpResponse::readFile() {
 		_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return false;
 	}
-
-	/* DEBUG START */
-	if (_targetFile.substr(_targetFile.find_last_of(".")) == ".html" && DEBUG == 1) {
-		std::cout << YELLOW << "Response body:" << RESET << std::endl;
-		for (char c : _responseBody) {
-			std::cout << c;
-			break ;
-		}
-		std::cout << RESET << std::endl;
-		std::cout << RESET << std::endl;
-	}
-	else {
-		DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
-	}
-	/* DEBUG END */
 	return true;
 }
 
@@ -675,7 +658,6 @@ bool HttpResponse::buildAutoIndexBody() {
 	// Open the directory
 	directory = opendir(_targetFile.c_str());
 	if (directory == NULL) {
-		DEBUG_PRINT(RED, "opendir failed for " + _targetFile);
 		return false;
 	}
 

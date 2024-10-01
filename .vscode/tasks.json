@@ -2,9 +2,9 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "build", // The task's label
+			"label": "Build Release", // The task's label
 			"type": "shell",
-			"command": "[ ! -f /testServer.out ] && make DEBUG_LEVEL=1", // replace /path/to/your/file with the path to your file
+			"command": "[ ! -f /WebSmurf ] && make", // replace /path/to/your/file with the path to your file
 			"group": {
 				"kind": "build",
 				"isDefault": true
@@ -15,9 +15,22 @@
 			"problemMatcher": []
 		},
 		{
-			"label": "reBuild",
+			"label": "Build Debug",
 			"type": "shell",
-			"command": "make re",
+			"command": "[ ! -f /WebSmurf ] && make DEBUG_LEVEL=1",
+			"group": {
+				"kind": "build",
+				"isDefault": false
+			},
+			"presentation": {
+				"reveal": "always"
+			},
+			"problemMatcher": []
+		},
+		{
+			"label": "Build Debug Log",
+			"type": "shell",
+			"command": "[ ! -f /WebSmurf ] && make DEBUG_LEVEL=2",
 			"group": {
 				"kind": "build",
 				"isDefault": false

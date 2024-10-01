@@ -81,9 +81,12 @@ void WebSmurf::run(int ac, char **av) {
 				av[1] = NULL;
 			}
 			Parse parser;
+			DEBUG_PRINT(MAGENTA, "WebSmurf Parsing Config...");
 			parser.readfile(av);
-			parser.printRawConf();
+			DEBUG_PRINT(GREEN, "WebSmurf Config Parsed...");
+			// parser.printRawConf();
 			setupServers(parser.getServers());
+			DEBUG_PRINT(GREEN, "WebSmurf Started...");
 			start();
 		}
 		catch (std::exception &e) {

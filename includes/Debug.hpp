@@ -41,16 +41,24 @@ inline void close_debug_file() {
 
 #define DEBUG_PRINT_NOR(x) \
 	do { \
-		std::cerr << current_timestamp() << x << std::endl; \
-		if (DEBUG == 2 && debug_file.is_open()) { \
+		if (DEBUG == 1) { \
+			std::cerr << current_timestamp() << x << std::endl; \
+		} else if (DEBUG == 2 && debug_file.is_open()) { \
+			debug_file << current_timestamp() << x << std::endl; \
+		} else if (DEBUG == 3 && debug_file.is_open()) { \
+			std::cerr << current_timestamp() << x << std::endl; \
 			debug_file << current_timestamp() << x << std::endl; \
 		} \
 	} while (0)
 
 #define DEBUG_PRINT_COL(col, x) \
 	do { \
-		std::cerr << current_timestamp() << col << x << RESET << std::endl; \
-		if (DEBUG == 2 && debug_file.is_open()) { \
+		if (DEBUG == 1) { \
+			std::cerr << current_timestamp() << col << x << RESET << std::endl; \
+		} else if (DEBUG == 2 && debug_file.is_open()) { \
+			debug_file << current_timestamp() << x << std::endl; \
+		} else if (DEBUG == 3 && debug_file.is_open()) { \
+			std::cerr << current_timestamp() << x << std::endl; \
 			debug_file << current_timestamp() << x << std::endl; \
 		} \
 	} while (0)

@@ -1,4 +1,4 @@
-NAME := testServer.out
+NAME := WebSmurf
 NICKNAME := webServ
 
 SRCS_DIR := srcs
