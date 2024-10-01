@@ -17,7 +17,7 @@ if not os.path.exists(upload_dir):
 # Test if the file was uploaded
 if fileitem.filename:
    open(os.getcwd() + '/cgi-bin/tmp/' + os.path.basename(fileitem.filename), 'wb').write(fileitem.file.read())
-   message = 'The file "' + os.path.basename(fileitem.filename) + '" was uploaded to ' + os.getcwd() + '/cgi-bin/tmp' + 'and uploaded'
+   message = 'The file "' + os.path.basename(fileitem.filename) + '" was uploaded to ' + os.getcwd() + '/cgi-bin/tmp'
    print("HTTP/1.1 201 CREATED", end='\r\n')
 else:
    print("HTTP/1.1 500 INTERNAL SERVER ERROR", end='\r\n')

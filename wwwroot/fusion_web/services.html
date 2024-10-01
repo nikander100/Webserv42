@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/serv.css">
+    <link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Montserrat:wght@400;700&display=swap" rel="stylesheet">
+    <title>Fusion</title>
+    <!-- <script>
+        if (window.history.replaceState) {
+            window.history.replaceState(null, null, window.location.href);  //
+        }
+    </script> -->
+	<style>
+        .form-container {
+            display: flex;
+            gap: 10px; /* Optional: Adds space between the buttons */
+        }
+        .form-container form {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="container">
+        <div class ="header__inner">
+            <a class = "nav__link__dop" href="tours/tours.html">Tour</a>
+            <nav class="nav">
+                <a class="nav__link__dop" href="index.html">Home</a>
+                <a class="nav__link__dop" href="services.html">Services</a>
+                <a class="nav__link__dop" href="about.html">About</a>
+                <a class="nav__link__dop" href="contact.html">Contact</a>
+                <a class="nav__link__dop" href="cookies.html">Cookies Test</a>
+                <a class="nav__link__dop" href="/cgi-bin/acc.py">Account</a>                   
+            </nav>
+        </div>
+    </div>
+</header>
+
+<div class="sub_div">
+    <h1 id="header"></h1>
+    <script>
+        function setAction(form, name){
+            document.cookie = "user=" + name;
+        }
+        const value = `${document.cookie}`;
+        const parts = value.split("=");
+        document.getElementById("header").innerHTML = "Welcome " + (parts[parts.indexOf("user") + 1] ? parts[parts.indexOf("user") + 1] : "to WebSmurf");
+    </script>
+    <br>
+    <form method="get" onsubmit="return setAction(this, document.getElementById('nameForm').value)">
+        Name: <input id="nameForm" type="text" name="user">
+        <input type="submit" value="OK">
+    </form>
+    
+    <br>
+	<form enctype="multipart/form-data" action = "../cgi-bin/upload.py" method="post" >
+        <p>File: <input type="file" name="filename" id="fileid" class="form-control">
+            <input type="submit" value="SEND" href="#"></p>
+    </form>
+
+    <br>
+    <div class="form-container">
+        <form action="../cgi-bin/delete.py" method="POST">
+            <input type="hidden" name="_method" value="DELETE" />
+            <!-- <input type="hidden" name="_token" value="{{ csrf_token() }}"> -->
+            <input type="submit" value="Delete">
+        </form>
+        <form action="../cgi-bin/delete.py" method="POST">
+            <input type="hidden" name="_method1" value="DELETE" />
+            <!-- <input type="hidden" name="_token" value="{{ csrf_token() }}"> -->
+            <input type="submit" value="DONT YOU DARE PRESS ME">
+        </form>
+    </div>
+	<br>
+
+	<h2>Py Cgi</h2>
+	<div class="form-container">
+		<form action="../cgi-bin/time.py" method="GET">
+			<input type="submit" value="Get time">
+		</form>
+		<form action="../cgi-bin/cookie.py" method="GET">
+			<input type="submit" value="Cookie">
+		</form>
+		<form action="../cgi-bin/env.py" method="GET">
+			<input type="submit" value="Get Env">
+		</form>
+	</div>
+	<br>
+
+    <h2> Bash Cgi</h2>
+	<div class="form-container">
+		<!-- <form action="../cgi-bin/image.sh" method="GET">
+			<input type="submit" value="Get Wood">
+		</form> -->
+		<form action="../cgi-bin/env.sh" method="GET">
+			<input type="submit" value="Get Env">
+		</form>
+		<form action="../cgi-bin/calendar.sh" method="GET">
+			<input type="submit" value="Get Calendar">
+		</form>
+	</div>
+</div>
+
+    <footer>
+        <p><span class="sight">Thank you for using WebSmurf</p>
+    </footer>
+
+</body>
+</html>

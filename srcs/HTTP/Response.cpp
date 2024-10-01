@@ -51,13 +51,18 @@ void HttpResponse::appendContentLengthHeader() {
 }
 
 void HttpResponse::appendConnectionTypeHeader() {
+	if (_statusCode == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		_responseHeader.append("Connection: close\r\n");
+	} else
 	if (_request.getHeader("connection") == "keep-alive") {
 		_responseHeader.append("Connection: keep-alive\r\n");
 	}
 }
 
 void HttpResponse::appendServerHeader() {
-	_responseHeader.append("Server: CRATIX\r\n");
+	_responseHeader.append("Server: ");
+	_responseHeader.append(SERVER_NAME);
+	_responseHeader.append("\r\n");
 }
 
 void HttpResponse::appendLocationHeader() {
@@ -127,23 +132,23 @@ void HttpResponse::setStatus() {
 }
 
 std::string HttpResponse::getLocationMatch(const std::string &path, const std::unordered_map<std::string, Location> &locations) {
-    size_t biggest_match = 0;
-    std::string bestMatch;
+	size_t biggest_match = 0;
+	std::string bestMatch;
 
-    for (const auto &pair : locations) {
-        const std::string &locPath = pair.first;
-        if (path.find(locPath) == 0) {
-            // Ensure that the match is valid by checking the character after the match
-            if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/' || locPath.back() == '/') {
-                if (locPath.length() > biggest_match) {
-                    biggest_match = locPath.length();
-                    bestMatch = locPath;
-                }
-            }
-        }
-    }
+	for (const auto &pair : locations) {
+		const std::string &locPath = pair.first;
+		if (path.find(locPath) == 0) {
+			// Ensure that the match is valid by checking the character after the match
+			if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/' || locPath.back() == '/') {
+				if (locPath.length() > biggest_match) {
+					biggest_match = locPath.length();
+					bestMatch = locPath;
+				}
+			}
+		}
+	}
 
-    return bestMatch; // Return the best match found
+	return bestMatch; // Return the best match found
 }
 
 std::string HttpResponse::combinePaths(const std::string &path1, const std::string &path2, const std::string &path3){
@@ -287,7 +292,9 @@ bool HttpResponse::handleTarget() {
 		Location location = _server.getLocation(locationKey);
 
 		// is allowed method
-		if (location.getAllowedMethods().find(_request.getMethod()) == location.getAllowedMethods().end()) {
+		auto allowedMethods = location.getAllowedMethods();
+		auto methodIt = allowedMethods.find(_request.getMethod());
+		if (methodIt == allowedMethods.end() || !methodIt->second) {
 			_statusCode = HTTP::StatusCode::Code::METHOD_NOT_ALLOWED;
 			return false;
 		}
@@ -305,7 +312,7 @@ bool HttpResponse::handleTarget() {
 		if (!location.getReturn().empty()) {
 			_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY; // Indicate permanent redirection
 			std::string originalPath = _request.getPath();
-            std::string newLocation = location.getReturn();
+			std::string newLocation = location.getReturn();
 
 			if (newLocation.rfind("http", 0) != 0) {
 				// Ensure the location starts with a slash for consistency
@@ -319,7 +326,7 @@ bool HttpResponse::handleTarget() {
 				}
 			}
 
-            _location = newLocation;
+			_location = newLocation;
 			return false; // Indicate that the response should not proceed as normal
 		}
 
@@ -330,12 +337,12 @@ bool HttpResponse::handleTarget() {
 
 		//handle alias
 		if (!location.getAlias().empty()) {
-    	// Extract the part of the request path that comes after the location prefix
-    		std::string relativePath = _request.getPath().substr(location.getPath().length());
+		// Extract the part of the request path that comes after the location prefix
+			std::string relativePath = _request.getPath().substr(location.getPath().length());
    		// Combine the alias path with the extracted relative path
-    		_targetFile = combinePaths(location.getAlias(), relativePath);
+			_targetFile = combinePaths(location.getAlias(), relativePath);
 		} else {
-    		_targetFile = combinePaths(location.getRoot(), _request.getPath());
+			_targetFile = combinePaths(location.getRoot(), _request.getPath());
 		}
 
 		// Retrieve the CGI path and extension configurations for the target location
@@ -354,6 +361,15 @@ bool HttpResponse::handleTarget() {
 		}
 		// check if target is a directory
 		if (FileUtils::getTypePath(_targetFile) == FileType::DIRECTORY) {
+			if (_request.getMethod() ==  Method::DELETE) {
+				// Check if the target directory or file exists
+				if (std::filesystem::exists(_targetFile)) {
+					return true;
+				} else {
+					_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
+					return false;
+				}
+			}
 			if (_targetFile.back() != '/') {
 				_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY;
 				_location = _request.getPath() + "/";
@@ -524,6 +540,7 @@ bool HttpResponse::buildBody() {
 		}
 
 		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
+		DEBUG_PRINT("Upload path: " + uploadPath.string());
 		_targetFile = uploadPath.string();
 
 		if (FileUtils::isFileExistAndReadable(_targetFile, "") && _request.getMethod() == Method::POST) {
@@ -549,7 +566,7 @@ bool HttpResponse::buildBody() {
 		return true;
 	}
 	else if (_request.getMethod() == Method::DELETE) {
-		if (!FileUtils::isFileExistAndReadable(_targetFile, "")) {
+		if (!std::filesystem::exists(_targetFile)) {
 			_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
 			return false;
 		}

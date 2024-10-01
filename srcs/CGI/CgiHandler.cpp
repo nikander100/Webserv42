@@ -66,7 +66,7 @@ void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	_env["SERVER_NAME"] = req.getHeader("host");
 	_env["SERVER_PORT"] = "8727";
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
-	_env["SERVER_SOFTWARE"] = "CRATIX";
+	_env["SERVER_SOFTWARE"] = SERVER_NAME;
 	_env["REDIRECT_STATUS"] = "200";
 
 	// Set HTTP headers as environment variables
@@ -132,7 +132,7 @@ void CgiHandler::initEnv(Request& req, const Location &location) {
 	_env["REQUEST_URI"] = req.getPath() + (req.getQuery().empty() ? "" : "?" + req.getQuery());
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
 	_env["REDIRECT_STATUS"] = "200";
-	_env["SERVER_SOFTWARE"] = "CRATIX";
+	_env["SERVER_SOFTWARE"] = SERVER_NAME;
 
 	// TODO test?
 	if (req.getMethod() == Method::POST) {

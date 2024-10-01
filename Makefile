@@ -9,8 +9,8 @@ SRCS := Socket/Socket.cpp \
 		Client/Client.cpp \
 		Parser/Parse.cpp \
 		EpollManager/EpollManager.cpp \
-		ServerManager/ServerManager.cpp \
-		main.cpp \
+		WebSmurf/WebSmurf.cpp \
+		WebSmurf/main.cpp \
 		Location/Location.cpp \
 		HTTP/Request.cpp \
 		HTTP/Response.cpp \

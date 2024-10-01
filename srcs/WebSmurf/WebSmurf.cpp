@@ -1,16 +1,16 @@
-#include "ServerManager.hpp"
+#include "WebSmurf.hpp"
 
-ServerManager::ServerManager(): _running(false) {
+WebSmurf::WebSmurf(): _running(false) {
 	// TODO make cgi-bin dir at runpath + /CGI_BIN_DIR
 	// TODO make session dir at runpath + /CGI_SESSION_DIR
 	// TODO make tmp dir at runpath + /TMP_DIR
 	// TODO pull all cgi-bin files from repo, give perms and put them in cgi-bin dir
 }
 
-ServerManager::~ServerManager() {
+WebSmurf::~WebSmurf() {
 }
 
-void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
+void WebSmurf::setupServers(std::vector<std::unique_ptr<Server>> servers)
 {
 	_servers = std::move(servers); // Move the unique_ptr into the vector
 	for (auto &server : _servers) {
@@ -18,7 +18,7 @@ void ServerManager::setupServers(std::vector<std::unique_ptr<Server>> servers)
 	}
 }
 
-void ServerManager::stop() {
+void WebSmurf::stop() {
 	if (_running) {
 		try {
 			_running = false;
@@ -32,11 +32,11 @@ void ServerManager::stop() {
 	}
 }
 
-void ServerManager::pause() {
+void WebSmurf::pause() {
 	_running = false;
 }
 
-void ServerManager::start() {
+void WebSmurf::start() {
 	std::vector<struct epoll_event> events;
 	
 	_running = true;
@@ -46,7 +46,7 @@ void ServerManager::start() {
 	}
 }
 
-void ServerManager::processEvents(std::vector<struct epoll_event>& events) {
+void WebSmurf::processEvents(std::vector<struct epoll_event>& events) {
 	events.clear();
 	events = EpollManager::getInstance().waitForEvents(1000);
 	for (auto &event : events) {
@@ -54,13 +54,13 @@ void ServerManager::processEvents(std::vector<struct epoll_event>& events) {
 	}
 }
 
-void ServerManager::checkClientTimeouts() {
+void WebSmurf::checkClientTimeouts() {
 	for (auto &server : _servers) {
 		server->checkClientTimeouts();
 	}
 }
 
-void ServerManager::assignToResponsibleServer(struct epoll_event &event) {
+void WebSmurf::assignToResponsibleServer(struct epoll_event &event) {
 	// Delegate to the server that handles this client
 	for (auto &server : _servers) {
 		if (event.data.fd == server->getListenFd()) {
@@ -71,5 +71,25 @@ void ServerManager::assignToResponsibleServer(struct epoll_event &event) {
 			server->handleEvent(event);
 			return;
 		}
+	}
+}
+
+void WebSmurf::run(int ac, char **av) {
+	if (ac == 2) {
+		try {
+			if (ac == 1) {
+				av[1] = NULL;
+			}
+			Parse parser;
+			parser.readfile(av);
+			parser.printRawConf();
+			setupServers(parser.getServers());
+			start();
+		}
+		catch (std::exception &e) {
+			DEBUG_PRINT(e.what());
+		}
+	} else {
+		std::cout << "Error: wrong arguments" << std::endl;
 	}
 }

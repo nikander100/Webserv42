@@ -539,7 +539,11 @@ void Server::setupServer() {
 		// Add server socket to epoll
 		EpollManager::getInstance().addToEpoll(_socket.getFd(), EPOLLIN);
 
-		// TODO make upload dir at rootpath + /UPLOAD_DIR
+		std::string uploadDir = _root + UPLOAD_DIR;
+		if (!std::filesystem::exists(uploadDir)) {
+			std::filesystem::create_directory(uploadDir);
+		}
+		
 	} catch (const std::runtime_error& e) {
 		DEBUG_PRINT(RED, "Server::setupServer: " << e.what());
 		exit(EXIT_FAILURE);

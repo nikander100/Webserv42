@@ -71,7 +71,7 @@ def printLogin():
     print("<title> Login Page </title>")
     print("</head>")
     print("<body>  ")
-    print("<center> <h1> Cratix Login Form </h1> </center> ")
+    print("<center> <h1> WebSmurf Login Form </h1> </center> ")
     print("<form action = \"../cgi-bin/acc.py\" method = \"get\">")
     print("<div class=\"container\"> ")
     print("<label>Username : </label> ")
