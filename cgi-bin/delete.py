@@ -48,7 +48,7 @@ def main():
             print(f"<html><body><h1>Deletion failed: Target does not exist {target_path}</h1></body></html>")
     elif method == 'DELETEALL':
         current_dir = os.getcwd()
-        if delete_directory(current_dir)
+        if delete_directory(current_dir):
             print("<html><body><h1>Deletion successful</h1></body></html>")
         else:
             print(f"<html><body><h1>Deletion failed: Target does not exist {current_dir}</h1></body></html>")
