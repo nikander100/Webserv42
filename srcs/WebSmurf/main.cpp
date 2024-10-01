@@ -29,10 +29,19 @@ initializeDirectory		(
 WWW_ROOT_DIR			,
 "wwwroot"				)
 						;
+						#if DEBUG == 2
+open_debug_file			(
+LOG_FILE				)
+						;
+						#endif
 WebSmurf serverManager	;
 serverManager.run		(
 ac						,
 av						)
 						;
+						#if DEBUG == 2
+close_debug_file		()
+						;
+						#endif
 return 0				;
 						}

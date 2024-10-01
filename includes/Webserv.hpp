@@ -79,3 +79,6 @@ constexpr const char *CONFIGS_DIR = "config_files";
 
 // Git Repository URL
 constexpr const char *GIT_REPO_URL = "git@github.com:nikander100/Webserv42.git";
+
+// Log file location
+constexpr const char *LOG_FILE = "WebSmurf.log";
