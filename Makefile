@@ -69,7 +69,7 @@ clean:
 
 fclean: clean
 	@echo "$(RED)$(BOLD)Fully cleaning $(NICKNAME)...$(RESET)"
-	@rm -f $(NAME)
+	@rm -f $(NAME) $(NAME).log
 
 re: fclean all
 
