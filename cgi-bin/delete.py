@@ -3,6 +3,7 @@
 import os
 import cgi
 import cgitb
+import shutil
 
 cgitb.enable()
 
