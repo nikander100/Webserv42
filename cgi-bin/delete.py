@@ -17,6 +17,17 @@ def delete_file(path):
         print(f"<html><body><h1>Error: {e}</h1></body></html>")
         return False
 
+def delete_directory(path):
+    try:
+        if os.path.isdir(path):
+            shutil.rmtree(path)
+            return True
+        else:
+            return False
+    except Exception as e:
+        print(f"<html><body><h1>Error: {e}</h1></body></html>")
+        return False
+
 def main():
     # Print headers
     print("HTTP/1.1 200 OK", end='\r\n')
@@ -37,7 +48,7 @@ def main():
             print(f"<html><body><h1>Deletion failed: Target does not exist {target_path}</h1></body></html>")
     elif method == 'DELETEALL':
         current_dir = os.getcwd()
-        if delete_file(os.path.join(current_dir)):
+        if delete_directory(current_dir)
             print("<html><body><h1>Deletion successful</h1></body></html>")
         else:
             print(f"<html><body><h1>Deletion failed: Target does not exist {current_dir}</h1></body></html>")
