@@ -41,3 +41,6 @@ docs/HttpReferences.md
 
 #ignore log
 *.log
+
+#ignore output
+WebSmurf

