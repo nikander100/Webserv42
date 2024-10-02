@@ -204,7 +204,6 @@ bool HttpResponse::handleCgiTemp(Location &location) {
 	return true;
 }
 
-// TODO rename to processCgi
 bool HttpResponse::executeCgi(Location &location) {
 	std::string path = _request.getPath().erase(0, _request.getPath().find_first_not_of('/'));
 	if (path == "cgi-bin") {
@@ -738,7 +737,6 @@ void HttpResponse::buildResponse() {
 	if (!requestIsSuccessful() || !buildBody()) {
 		buildErrorBody();
 	}
-	// TODO je moeder cgi correct handling
 	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;

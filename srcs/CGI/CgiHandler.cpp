@@ -6,7 +6,7 @@ CgiHandler::CgiHandler() : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(""), _e
 CgiHandler::CgiHandler(std::string path) : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(path), _error_code(HTTP::StatusCode::Code::NONE) {
 }
 
-CgiHandler::~CgiHandler() { // todo possibly use free instead.
+CgiHandler::~CgiHandler() { 
 	_cgiEnvp.clear();
 	_cgiArgv.clear();
 	_env.clear();
@@ -133,7 +133,6 @@ void CgiHandler::initEnv(Request& req, const Location &location) {
 	_env["REDIRECT_STATUS"] = "200";
 	_env["SERVER_SOFTWARE"] = SERVER_NAME;
 
-	// TODO test?
 	if (req.getMethod() == Method::POST) {
 		_env["HTTP_BODY"] = req.getBody();
 	}
@@ -176,7 +175,6 @@ void CgiHandler::execute() {
 		return;
 	}
 
-	//TODO test TEST TEST MOEDER
 	// Write the body data to stdin
 	if (_env["REQUEST_METHOD"] == "POST") {
 		const std::string& body = _env["HTTP_BODY"];
