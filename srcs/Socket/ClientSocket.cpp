@@ -9,7 +9,6 @@ void ClientSocket::send(const std::string &data) {
 		int bytesSent = ::send(_fd, data.substr(totalBytesSent).c_str(), data.length() - totalBytesSent, 0);
 		if (bytesSent == -1) {
 			throw std::runtime_error("Error sending response to client: " + std::string(strerror(errno)));
-			// TODO possibly not allowed by subject 14-20
 			/* if (errno == EAGAIN || errno == EWOULDBLOCK) {
 				// If send() would block, retry
 				continue;

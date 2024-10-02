@@ -14,8 +14,13 @@ Server::~Server() {
 // Server Block: server { ... }
 // Takes a std::string from the parser should be:
 // [server_name localhost;]
-void Server::setServerName(std::string &server_name) { // todo possibly make only a-zA-Z0-9
+void Server::setServerName(std::string &server_name) {
 	checkInput(server_name);
+	for (char c : server_name) {
+		if (!std::isalnum(c) && c != '.') {
+			throw Error("Invalid server name: " + server_name);
+		}
+	}
 	_serverName = server_name;
 }
 
@@ -621,7 +626,7 @@ void Server::removeClient(int client_fd) {
 void Server::handleEpollOut(struct epoll_event &event) {
 	try {
 		Client& client = getClient(event.data.fd);
-		client.generateResponse(); //TODO handle cgi state and handle accordingly.. and implement checks further.
+		client.generateResponse();
 
 		client.send();
 
@@ -670,7 +675,7 @@ void Server::handleEvent(struct epoll_event &event) {
 		} else if (event.events & EPOLLIN) {
 			handleEpollIn(event); // Handle Request.
 		} 
-	} catch (const std::runtime_error& e) { // TODO test with client close and check if it works.
+	} catch (const std::runtime_error& e) {
 		EpollManager::getInstance().removeFromEpoll(event.data.fd);
 		removeClient(event.data.fd);
 		DEBUG_PRINT(RED, "Server::handleEvent: " << e.what());
