@@ -460,12 +460,12 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 			}
 		}
 
-		// Check if all required extensions were found
-		for (const auto &pair : cgiPathExtension) {
-			if (foundExtensions.find(pair.first) == foundExtensions.end()) {
-				return CgiValidation::FAILED_CGI_VALIDATION;
-			}
-		}
+		// // Check if all required extensions were found
+		// for (const auto &pair : cgiPathExtension) {
+		// 	if (foundExtensions.find(pair.first) == foundExtensions.end()) {
+		// 		return CgiValidation::FAILED_CGI_VALIDATION;
+		// 	}
+		// }
 
 		// // for (const auto &pair : cgiPathExtension) {
 		// // 	const std::string &path = pair.second;
@@ -493,7 +493,7 @@ Server::CgiValidation Server::isValidLocation(Location &location) const {
 			}
 		}
 		if (!location.getAlias().empty()) {
-			if (FileUtils::getTypePath(location.getAlias()) != FileType::DIRECTORY) {
+			if (FileUtils::getTypePath(_root + location.getAlias()) != FileType::DIRECTORY) {
 				return CgiValidation::FAILED_ALIAS_VALIDATION;
 			}
 		}

@@ -1,6 +1,6 @@
 #include "WebSmurf.hpp"
 
-void initializeDirectory(const std::string& dir, const std::string& branch) {
+static void initializeDirectory(const std::string& dir, const std::string& branch) {
 	if (!std::filesystem::exists(dir)) {
 		std::cout << "Initializing " << dir << " directory..." << std::endl;
 		std::filesystem::create_directory(dir);
@@ -13,6 +13,32 @@ void initializeDirectory(const std::string& dir, const std::string& branch) {
 	}
 }
 
+static void init() {
+	initializeDirectory(CGI_BIN_DIR, "cgi-bin");
+	initializeDirectory(CONFIGS_DIR, "configs");
+	initializeDirectory(WWW_ROOT_DIR, "wwwroot");
+}
+
+static void setup() {
+	std::ifstream infile("setup.ws42");
+	if (!infile.good()) {
+		// Inform user that they will pull a default configuration
+		std::cout << "This is the first run. The program will pull a default configuration. Do you want to proceed? (Y/N): ";
+		char userInput;
+		std::cin >> userInput;
+		if (userInput != 'Y' && userInput != 'y') {
+			std::cout << "Exiting program." << std::endl;
+			exit (EXIT_FAILURE);
+		}
+		init();
+		// Create the file to mark that the first run has been completed
+		std::ofstream outfile("setup.ws42");
+		outfile << "This file marks that the first run has been completed." << std::endl;
+		outfile.close();
+	}
+
+}
+
 int main					(
 int ac						,
 char **av					)
@@ -21,17 +47,7 @@ DEBUG_PRINT					(
 MAGENTA						,
 "WebSmurf Initializing..."	)
 							;
-initializeDirectory			(
-CGI_BIN_DIR					,
-"cgi-bin"					)
-							;
-initializeDirectory			(
-CONFIGS_DIR					,
-"configs"					)
-							;
-initializeDirectory			(
-WWW_ROOT_DIR				,
-"wwwroot"					)
+setup						()
 							;
 #if DEBUG == 				2
 open_debug_file				(
