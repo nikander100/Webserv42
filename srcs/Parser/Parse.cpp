@@ -415,8 +415,8 @@ void Parse::setServers() {
 		}
 		_servers.push_back(std::move(server));
 	}
-	for (auto& s : _servers){
-		Server& ser = *s;
-		std::cout << ser;
-	}
+	// for (auto& s : _servers){
+	// 	Server& ser = *s;
+	// 	std::cout << ser;
+	// }
 }
