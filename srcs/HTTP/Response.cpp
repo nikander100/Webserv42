@@ -339,6 +339,7 @@ bool HttpResponse::handleTarget() {
 			std::string relativePath = _request.getPath().substr(location.getPath().length());
    		// Combine the alias path with the extracted relative path
 			_targetFile = combinePaths(location.getAlias(), relativePath);
+			_targetFile = combinePaths(location.getRoot(), _targetFile);
 		} else {
 			_targetFile = combinePaths(location.getRoot(), _request.getPath());
 		}
