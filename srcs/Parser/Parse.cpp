@@ -15,7 +15,7 @@ void	Parse::commentsFilter()
 	for (std::string& lines : _raw_conf_file)
 	{
 		size_t endpos = std::string::npos;
-		size_t one = lines.find("//");
+		size_t one = lines.find("///");
 		size_t two = lines.find("#");
 
 		if (one != std::string::npos && two != std::string::npos)
@@ -171,8 +171,7 @@ void Parse::locationChecker() {
         "listen",
         "server_name",
         "host",
-        "client_max_body_size",
-        "error_page"
+        "error_page",
     };
 
     if (_locationTemp.empty())
@@ -183,8 +182,8 @@ void Parse::locationChecker() {
 	{
         for (const auto& naughtyWord : listOfNaughtyWords)
 		{
-            if (locationStr.find(naughtyWord) != std::string::npos)
-                throw std::invalid_argument("Location contains " + locationStr + " which is not allowed\n");
+            if (locationStr.find(naughtyWord) != std::string::npos && locationStr.find("alias") == std::string::npos && locationStr.find("return") == std::string::npos && locationStr.find("root") == std::string::npos)
+                throw std::invalid_argument("Location contains " + locationStr + " which is not allowed\nfunction locationChecker in parse.cpp\n");
         }
     }
 }
@@ -221,6 +220,13 @@ void Parse::handleLocations(std::string lName, Server& server, std::vector<std::
 		this->_locationTemp.push_back(cgiPath);
 	
 	locationChecker();
+
+	_locationBlockTemp.push_back(_locationBlockTemp.front());
+	_locationBlockTemp.erase(_locationBlockTemp.begin());
+	_locationBlockTemp.pop_back();
+	_locationBlockTemp.pop_back();
+
+	server.setLocation(lName, this->_locationBlockTemp);
 	server.setLocation(lName, this->_locationTemp);
 	this->_locationTemp.clear();
 }
@@ -234,6 +240,106 @@ void	Parse::locationPaths(std::string tPaths)
 	}
 }
 
+
+void	Parse::buildTempLocationBlock(std::string string, std::vector<std::string>::const_iterator& it, const std::vector<std::string>& vecS)
+{
+	std::vector<std::string>::const_iterator iter = it;
+	for (;iter != vecS.end() ; iter++)
+	{
+		std::string t = *iter;
+		_locationBlockTemp.push_back(t);
+		if (t.find("}") != std::string::npos)
+			break;
+	}
+}
+
+std::vector<std::string> split(std::string &str) {
+    std::istringstream stream(str);
+    std::string word;
+    std::vector<std::string> result;
+
+    while (stream >> word) {
+        result.push_back(word);
+    }
+
+    return result;
+}
+
+bool	allowedMethodsCheck(std::string str)
+{
+	std::vector<std::string> splitstr = split(str);
+	std::vector<std::string> list{
+		"GET",
+		"POST",
+		"DELETE",
+		"HEAD",
+		"PUT",
+		"allow_methods"
+	};
+	bool	correctness;
+
+	for (auto& s : splitstr)
+	{
+		correctness = false;
+	    for (auto& listitem : list)
+		{
+			correctness = false;
+	        if (s.find(listitem) != std::string::npos)
+			{
+				correctness = true;
+				break;
+			}
+	    }
+		if (!correctness)
+			return (false);
+	}
+	return (true);
+}
+
+void	Parse::checkPath(std::string string, std::string del, const std::string& root)
+{
+	size_t start = string.find(del);
+	std::string tempstring = string.substr(start + del.length());
+	tempstring.erase(std::remove_if(tempstring.begin(), tempstring.end(), ::isspace), tempstring.end());
+	tempstring.pop_back();
+	if (string.find("index") != std::string::npos && string.find("autoindex") == std::string::npos &&  tempstring.length() == 0)
+		throw std::invalid_argument("index incomplete config_file\nfunction:	checkPath() in Parse.cpp\n");
+	if (string.find("root") != std::string::npos && !std::filesystem::exists(tempstring))
+		throw std::invalid_argument("location path '" + tempstring + "' does not exist\nfunction:	checkPath() in Parse.cpp\n");
+	if (string.find("autoindex") != std::string::npos && tempstring != "on" && tempstring != "off")
+		throw std::invalid_argument("AutoIndex incorrect\nfunction:	checkPath() in Parse.cpp\n");
+	if (string.find("allow_methods") != std::string::npos && !allowedMethodsCheck(string))
+		throw std::invalid_argument("allow_methods incorrect\nfunction:	checkPath() in Parse.cpp\n");
+	if (string.find("alias") != std::string::npos && !std::filesystem::exists(root + tempstring))
+		throw std::invalid_argument("alias path '" + tempstring + "' does not exist\nfunction:	checkPath() in Parse.cpp\n");
+}
+
+void	Parse::readTempLocationBlock(const std::string& root)
+{
+	std::vector<std::string> listOfNaughtyWords = {
+        "root",
+        "alias",
+        "index",
+        "autoindex",
+		"allow_methods"
+    };
+
+	for (auto& blockString : _locationBlockTemp)
+	{
+	    for (auto& naughtyWord : listOfNaughtyWords)
+		{
+	        if (blockString.find(naughtyWord) != std::string::npos)
+			{
+				checkPath(blockString, naughtyWord, root);
+			}
+	    }
+	}
+	// for (auto& it : _locationBlockTemp)
+	// {
+	// 	std::string str = it;
+	// 	std::cout << str << "\n";
+	// }
+}
 
 void Parse::setServers() {
 	for (const std::vector<std::string>& vec : this->_servers_conf)
@@ -264,7 +370,7 @@ void Parse::setServers() {
 			} else if (str.find("listen") != std::string::npos) {
 				_setServerString = str.substr(str.find("listen") + 6);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-				if (server->getPort() != "8727")	//change this to empty string ""
+				if (server->getPort() != "0")	//change this to empty string ""
 					throw std::runtime_error("port again?\n");
 				server->setPort(_setServerString);
 			} else if (str.find("client_max_body_size") != std::string::npos) {
@@ -291,15 +397,17 @@ void Parse::setServers() {
 				if (!server->getErrorPage(status).first)
 					throw std::invalid_argument("error Page set double\n");
 				std::string temp = extractPath(error_page, "error_pages/", ";");
+				temp.append(";");
 				server->setErrorPage(status, temp);
 			} else if (str.find("location") != std::string::npos){
+				buildTempLocationBlock(str, it, vec);
+				readTempLocationBlock(server->getRoot());
 				std::string temp = extractPath(str, "/", "{");
 				locationPaths(temp);
 				_locationPaths.push_back(temp);
 				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
-				if (!std::filesystem::exists("."+temp))
-					throw std::invalid_argument("invalid Location\n" + temp + "\n");
 				handleLocations(temp, *server, it, vec);
+				_locationBlockTemp.clear();
 			}
 			_setServerString.clear();
 		}
