@@ -42,9 +42,9 @@ static void setup() {
 		outfile << "Please also delete the directories cgi-bin, wwwroot, and config_files for the program to correctly pyll the defaults." << std::endl;
 		outfile.close();
 		#if DEBUG == 2
-		DEBUG_PRINT(GREEN, "Setup completed.");
+		DEBUG_PRINT(GREEN, "WebSmurf: Setup completed.");
 		#endif
-		std::cout << GREEN << "Setup completed." << RESET << std::endl;
+		std::cout << GREEN << "WebSmurf: Setup completed." << RESET << std::endl;
 	}
 
 }

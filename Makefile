@@ -69,7 +69,7 @@ fclean: clean
 	@rm -f $(NAME) $(NAME).log
 
 # Reset the software to its initial state
-firstrun: re
+firstrun: fclean
 	@rm -rf config_files/ wwwroot/ cgi-bin/ setup.ws42
 
 re: fclean all

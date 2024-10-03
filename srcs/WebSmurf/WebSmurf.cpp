@@ -71,11 +71,8 @@ void WebSmurf::assignToResponsibleServer(struct epoll_event &event) {
 }
 
 void WebSmurf::run(int ac, char **av) {
-	if (ac == 2) {
+	if (ac == 2 && !FIRST_RUN) {
 		try {
-			if (ac == 1) {
-				av[1] = NULL;
-			}
 			Parse parser;
 			DEBUG_PRINT(MAGENTA, "WebSmurf Parsing Config...");
 			parser.readfile(av);
