@@ -56,3 +56,5 @@ docs/HttpReferences.md
 
 #ignore output
 WebSmurf
+# Do not ignore files in the srcs directory (srcs/WebSmurf)
+!srcs/
