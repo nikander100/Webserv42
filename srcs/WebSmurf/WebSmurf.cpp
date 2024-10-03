@@ -90,9 +90,18 @@ void WebSmurf::run(int ac, char **av) {
 			start();
 		}
 		catch (std::exception &e) {
-			DEBUG_PRINT(e.what());
+			DEBUG_PRINT(RED,"WebSmurf: " << e.what());
 		}
 	} else {
-		std::cout << "Error: wrong arguments" << std::endl;
+		if (!FIRST_RUN) {
+			std::cout << YELLOW << "Warn: Please run the program with a single configuration file." << RESET << std::endl;
+			std::cout << "Example input: ./WebSmurf [config_file.conf]" << std::endl;
+			#if DEBUG == 2
+			DEBUG_PRINT(YELLOW, "Warn: wrong arguments");
+			DEBUG_PRINT(YELLOW, "Warn: Please run the program with a single configuration file.");
+			#endif
+		} else if (FIRST_RUN) {
+			FIRST_RUN = !FIRST_RUN;
+		}
 	}
 }

@@ -47,9 +47,6 @@ DEBUG_LEVEL = 0
 
 all: print_info $(NAME)
 
-run: all
-	./$(NAME) test
-
 $(NAME): $(OBJS)
 	@printf "%b%s%b" "$(YELLOW)$(BOLD)" "Compiling $(NICKNAME)..." "$(RESET)"
 	@$(CXX) $^ -o $@
@@ -70,6 +67,10 @@ clean:
 fclean: clean
 	@echo "$(RED)$(BOLD)Fully cleaning $(NICKNAME)...$(RESET)"
 	@rm -f $(NAME) $(NAME).log
+
+# Reset the software to its initial state
+firstrun: re
+	@rm -rf config_files/ wwwroot/ cgi-bin/ setup.ws42
 
 re: fclean all
 

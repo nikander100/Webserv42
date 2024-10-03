@@ -20,7 +20,7 @@ static void init() {
 }
 
 static void setup() {
-	std::ifstream infile("setup.ws42");
+	std::ifstream infile(FIRST_RUN_FILE);
 	if (!infile.good()) {
 		// Inform user that they will pull a default configuration
 		std::cout << "This is the first run. The program will pull a default configuration. Do you want to proceed? (Y/N): ";
@@ -32,9 +32,17 @@ static void setup() {
 		}
 		init();
 		// Create the file to mark that the first run has been completed
-		std::ofstream outfile("setup.ws42");
+		std::ofstream outfile(FIRST_RUN_FILE);
 		outfile << "This file marks that the first run has been completed." << std::endl;
+		outfile << "This file is located at the root of the program." << std::endl;
+		outfile << "This file is used to prevent the program from pulling the git repo on every run." << std::endl;
+		outfile << "Deleting this file will cause the program to try pull the git repo on the next run." << std::endl;
+		outfile << "Please also delete the directories cgi-bin, wwwroot, and config_files for the program to correctly pyll the defaults." << std::endl;
 		outfile.close();
+		#if DEBUG == 2
+		DEBUG_PRINT(GREEN, "Setup completed.");
+		#endif
+		std::cout << GREEN << "Setup completed." << RESET << std::endl;
 	}
 
 }
@@ -49,7 +57,7 @@ MAGENTA						,
 							;
 setup						()
 							;
-#if DEBUG == 				2
+#if 						DEBUG
 open_debug_file				(
 LOG_FILE					)
 							;
@@ -63,7 +71,7 @@ serverManager.run			(
 ac							,
 av							)
 							;
-#if DEBUG == 				2
+#if 						DEBUG
 close_debug_file			()
 							;
 #endif

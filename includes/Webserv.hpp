@@ -82,3 +82,9 @@ constexpr const char *GIT_REPO_URL = "git@github.com:nikander100/Webserv42.git";
 
 // Log file location
 constexpr const char *LOG_FILE = "WebSmurf.log";
+
+// first run file
+constexpr const char *FIRST_RUN_FILE = "setup.ws42";
+
+// first run bool
+bool FIRST_RUN = true;
