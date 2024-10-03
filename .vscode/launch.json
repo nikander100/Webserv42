@@ -44,7 +44,7 @@
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
 		{
-			"name": "g++ - Build and run active file with level 2 debug",
+			"name": "g++ - Build and run default server with level 2 debug",
 			"type": "cppdbg",
 			"request": "launch",
 			"program": "${workspaceFolder}/WebSmurf", // replace <your-program> with your actual program's path

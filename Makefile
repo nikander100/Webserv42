@@ -42,7 +42,7 @@ RED := \033[31;1m
 BOLD := \033[1m
 RESET := \033[0m
 
-# Default debug level
+# Default debug level can be ran with: 1 for console debug, 2 for file debug, 3 for both
 DEBUG_LEVEL = 0
 
 all: print_info $(NAME)
