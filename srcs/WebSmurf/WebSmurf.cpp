@@ -1,10 +1,6 @@
 #include "WebSmurf.hpp"
 
 WebSmurf::WebSmurf(): _running(false) {
-	// TODO make cgi-bin dir at runpath + /CGI_BIN_DIR
-	// TODO make session dir at runpath + /CGI_SESSION_DIR
-	// TODO make tmp dir at runpath + /TMP_DIR
-	// TODO pull all cgi-bin files from repo, give perms and put them in cgi-bin dir
 }
 
 WebSmurf::~WebSmurf() {
@@ -100,8 +96,6 @@ void WebSmurf::run(int ac, char **av) {
 			DEBUG_PRINT(YELLOW, "Warn: wrong arguments");
 			DEBUG_PRINT(YELLOW, "Warn: Please run the program with a single configuration file.");
 			#endif
-		} else if (FIRST_RUN) {
-			FIRST_RUN = !FIRST_RUN;
 		}
 	}
 }

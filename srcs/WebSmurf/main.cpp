@@ -1,4 +1,5 @@
 #include "WebSmurf.hpp"
+bool FIRST_RUN = false;
 
 static void initializeDirectory(const std::string& dir, const std::string& branch) {
 	if (!std::filesystem::exists(dir)) {
@@ -22,6 +23,7 @@ static void init() {
 static void setup() {
 	std::ifstream infile(FIRST_RUN_FILE);
 	if (!infile.good()) {
+		FIRST_RUN = true;
 		// Inform user that they will pull a default configuration
 		std::cout << "This is the first run. The program will pull a default configuration. Do you want to proceed? (Y/N): ";
 		char userInput;

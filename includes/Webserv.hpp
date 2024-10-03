@@ -87,4 +87,4 @@ constexpr const char *LOG_FILE = "WebSmurf.log";
 constexpr const char *FIRST_RUN_FILE = "setup.ws42";
 
 // first run bool
-bool FIRST_RUN = true;
+extern bool FIRST_RUN;
