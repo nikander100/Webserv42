@@ -40,7 +40,6 @@ wwwroot/
 #config fir
 config_files/
 
-
 #cgi-bin dir
 cgi-bin/
 
