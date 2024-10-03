@@ -33,7 +33,11 @@ void	Parse::readfile(char **argv)
 {
 	std::string filecheck = argv[1];
 	if (!std::filesystem::exists(filecheck))
-		throw std::invalid_argument("file does not exist\n");
+	{
+		if (filecheck == "anus")
+			throw std::invalid_argument("damnit kenny\n");
+		throw std::invalid_argument("config_file does not exist\n");
+	}
 	std::ifstream file(argv[1]);
 	std::string line;
 	while (std::getline(file, line))
