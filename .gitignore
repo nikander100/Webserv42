@@ -43,6 +43,10 @@ config_files/
 #cgi-bin dir
 cgi-bin/
 
+tests/
+docs/
+subject_files/
+
 
 #keepthis in ignore until formated properly...
 docs/HttpReferences.md 
