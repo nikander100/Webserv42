@@ -54,7 +54,7 @@ docs/HttpReferences.md
 #ignore log
 *.log
 
+# Do not ignore files in the srcs directory (srcs/WebSmurf)
+!srcs/*
 #ignore output
 WebSmurf
-# Do not ignore files in the srcs directory (srcs/WebSmurf)
-!srcs/
