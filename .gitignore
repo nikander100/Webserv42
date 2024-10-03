@@ -34,8 +34,17 @@
 # notes
 notes.md
 
-#testserverdir
-wwwroot/s*
+#server dir
+wwwroot/
+
+#config fir
+config_files/
+
+
+#cgi-bin dir
+cgi-bin/
+
+
 #keepthis in ignore until formated properly...
 docs/HttpReferences.md 
 
