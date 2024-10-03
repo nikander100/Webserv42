@@ -65,6 +65,8 @@ class Request
 		bool parseRequestLine(const std::string &line);
 		bool parseHeader(const std::string &line);
 		bool handleHeaders(std::istream &stream);
+		bool handleTextData(std::istringstream &stream);
+		bool handleBinaryData(std::istringstream &stream);
 		bool parseMultipartData(std::istringstream &stream);
 		bool _multipartIsBinary;
 		bool parseChunkSize(const std::string &line);

@@ -26,7 +26,7 @@ void Client::send() {
 		throw;
 	}
 	updateTime();
-	// clear(); // TODO maybe not needed only clear rersponse?
+	// clear(); // maybe not needed only clear rersponse?
 	clearResponse();
 }
 

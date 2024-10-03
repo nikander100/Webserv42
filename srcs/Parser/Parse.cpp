@@ -413,6 +413,8 @@ void Parse::setServers() {
 				locationPaths(temp);
 				_locationPaths.push_back(temp);
 				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
+				// if (!std::filesystem::exists("."+temp))
+				// 	throw std::invalid_argument("invalid Location\n" + temp + "\n");
 				handleLocations(temp, *server, it, vec);
 				_locationBlockTemp.clear();
 			}
@@ -420,8 +422,8 @@ void Parse::setServers() {
 		}
 		_servers.push_back(std::move(server));
 	}
-	for (auto& s : _servers){
-		Server& ser = *s;
-		std::cout << ser;
-	}
+	// for (auto& s : _servers){
+	// 	Server& ser = *s;
+	// 	std::cout << ser;
+	// }
 }

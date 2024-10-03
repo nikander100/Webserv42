@@ -2,11 +2,11 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "g++ - Build and debug active file",
+			"name": "g++ - Build and run default server",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
-			"args": ["config_files/server_dir.conf"], // command line arguments go here
+			"program": "${workspaceFolder}/WebSmurf", // replace <your-program> with your actual program's path
+			"args": ["config_files/fusion_web.conf"], // command line arguments go here
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
@@ -19,15 +19,15 @@
 					"ignoreFailures": true
 				}
 			],
-			"preLaunchTask": "build", // name of the task to run before debugging
+			"preLaunchTask": "Build Release", // name of the task to run before debugging
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
 		{
-			"name": "g++ - reBuild and debug active file",
+			"name": "g++ - Build and run default server with level 1 debug",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/testServer.out", // replace <your-program> with your actual program's path
-			"args": ["test"], // command line arguments go here
+			"program": "${workspaceFolder}/WebSmurf", // replace <your-program> with your actual program's path
+			"args": ["config_files/fusion_web.conf"], // command line arguments go here
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
@@ -40,15 +40,15 @@
 					"ignoreFailures": true
 				}
 			],
-			"preLaunchTask": "reBuild", // name of the task to run before debugging
+			"preLaunchTask": "Build Debug", // name of the task to run before debugging
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
 		{
-			"name": "g++ - requesttest",
+			"name": "g++ - Build and run default server with level 2 debug",
 			"type": "cppdbg",
 			"request": "launch",
-			"program": "${workspaceFolder}/tests/httpRequestTest.out", // replace <your-program> with your actual program's path
-			"args": [""], // command line arguments go here
+			"program": "${workspaceFolder}/WebSmurf", // replace <your-program> with your actual program's path
+			"args": ["config_files/fusion_web.conf"], // command line arguments go here
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}",
 			"environment": [],
@@ -61,8 +61,29 @@
 					"ignoreFailures": true
 				}
 			],
+			"preLaunchTask": "Build Debug Log", // name of the task to run before debugging
 			"miDebuggerPath": "/usr/bin/gdb" // path to gdb
 		},
+		// {
+		// 	"name": "g++ - requesttest",
+		// 	"type": "cppdbg",
+		// 	"request": "launch",
+		// 	"program": "${workspaceFolder}/tests/httpRequestTest.out", // replace <your-program> with your actual program's path
+		// 	"args": [""], // command line arguments go here
+		// 	"stopAtEntry": false,
+		// 	"cwd": "${workspaceFolder}",
+		// 	"environment": [],
+		// 	"externalConsole": false,
+		// 	"MIMode": "gdb",
+		// 	"setupCommands": [
+		// 		{
+		// 			"description": "Enable pretty-printing for gdb",
+		// 			"text": "-enable-pretty-printing",
+		// 			"ignoreFailures": true
+		// 		}
+		// 	],
+		// 	"miDebuggerPath": "/usr/bin/gdb" // path to gdb
+		// },
 		// {
 		// 	"type": "lldb",
 		// 	"request": "launch",

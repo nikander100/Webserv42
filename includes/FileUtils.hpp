@@ -71,14 +71,11 @@ namespace FileUtils {
 	 */
 	inline bool isFileExistAndReadable(const std::string& path, const std::string& index) {
 		if (getTypePath(index) == FileType::FILE && checkFile(index) == 0) {
-			DEBUG_PRINT(GREEN, "index is a file and is readable");
 			return true;
 		}
 		if (getTypePath(path + index) == FileType::FILE && checkFile(path + index) == 0) {
-			DEBUG_PRINT(GREEN, "index is a file and is readable");
 			return true;
 		}
-		DEBUG_PRINT(RED, "index is not a file or is not readable");
 		return false;
 	}
 

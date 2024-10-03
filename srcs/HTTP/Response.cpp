@@ -51,13 +51,18 @@ void HttpResponse::appendContentLengthHeader() {
 }
 
 void HttpResponse::appendConnectionTypeHeader() {
+	if (_statusCode == HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
+		_responseHeader.append("Connection: close\r\n");
+	} else
 	if (_request.getHeader("connection") == "keep-alive") {
 		_responseHeader.append("Connection: keep-alive\r\n");
 	}
 }
 
 void HttpResponse::appendServerHeader() {
-	_responseHeader.append("Server: CRATIX\r\n");
+	_responseHeader.append("Server: ");
+	_responseHeader.append(SERVER_NAME);
+	_responseHeader.append("\r\n");
 }
 
 void HttpResponse::appendLocationHeader() {
@@ -133,7 +138,8 @@ std::string HttpResponse::getLocationMatch(const std::string &path, const std::u
 	for (const auto &pair : locations) {
 		const std::string &locPath = pair.first;
 		if (path.find(locPath) == 0) {
-			if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/') {
+			// Ensure that the match is valid by checking the character after the match
+			if (locPath == "/" || path.length() == locPath.length() || path[locPath.length()] == '/' || locPath.back() == '/') {
 				if (locPath.length() > biggest_match) {
 					biggest_match = locPath.length();
 					bestMatch = locPath;
@@ -198,7 +204,6 @@ bool HttpResponse::handleCgiTemp(Location &location) {
 	return true;
 }
 
-// TODO rename to processCgi
 bool HttpResponse::executeCgi(Location &location) {
 	std::string path = _request.getPath().erase(0, _request.getPath().find_first_not_of('/'));
 	if (path == "cgi-bin") {
@@ -229,7 +234,7 @@ bool HttpResponse::executeCgi(Location &location) {
 		return false;
 	}
 
-	// Check if the file
+	// Check if the file is read and executable
 	if (FileUtils::checkFile(path, W_OK | X_OK) == -1) {
 		_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
 		return false;
@@ -275,7 +280,6 @@ bool HttpResponse::buildCgiBody() {
 	}
 
 	std::string responsebody = std::string(_responseBody.begin(), _responseBody.end());
-	DEBUG_PRINT(GREEN, "Response body: " + responsebody);
 	return true;
 }
 
@@ -286,7 +290,9 @@ bool HttpResponse::handleTarget() {
 		Location location = _server.getLocation(locationKey);
 
 		// is allowed method
-		if (location.getAllowedMethods().find(_request.getMethod()) == location.getAllowedMethods().end()) {
+		auto allowedMethods = location.getAllowedMethods();
+		auto methodIt = allowedMethods.find(_request.getMethod());
+		if (methodIt == allowedMethods.end() || !methodIt->second) {
 			_statusCode = HTTP::StatusCode::Code::METHOD_NOT_ALLOWED;
 			return false;
 		}
@@ -303,13 +309,22 @@ bool HttpResponse::handleTarget() {
 		// a permanent redirection and prepend a slash to the location if it's missing.
 		if (!location.getReturn().empty()) {
 			_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY; // Indicate permanent redirection
-			_location = location.getReturn();
+			std::string originalPath = _request.getPath();
+			std::string newLocation = location.getReturn();
 
-			// Ensure the location starts with a slash for consistency
-			if (_location.front() != '/') {
-				_location.insert(_location.begin(), '/');
+			if (newLocation.rfind("http", 0) != 0) {
+				// Ensure the location starts with a slash for consistency
+				if (newLocation.front() != '/') {
+					newLocation.insert(newLocation.begin(), '/');
+				}
+	
+				// Append the sub-path from the original request to the new location
+				if (originalPath.length() > locationKey.length()) {
+					newLocation += originalPath.substr(locationKey.length());
+				}
 			}
 
+			_location = newLocation;
 			return false; // Indicate that the response should not proceed as normal
 		}
 
@@ -320,9 +335,12 @@ bool HttpResponse::handleTarget() {
 
 		//handle alias
 		if (!location.getAlias().empty()) {
-			_targetFile = combinePaths(location.getAlias(), _request.getPath().substr(location.getPath().length()));
-		}
-		else {
+		// Extract the part of the request path that comes after the location prefix
+			std::string relativePath = _request.getPath().substr(location.getPath().length());
+   		// Combine the alias path with the extracted relative path
+			_targetFile = combinePaths(location.getAlias(), relativePath);
+			_targetFile = combinePaths(location.getRoot(), _targetFile);
+		} else {
 			_targetFile = combinePaths(location.getRoot(), _request.getPath());
 		}
 
@@ -342,17 +360,32 @@ bool HttpResponse::handleTarget() {
 		}
 		// check if target is a directory
 		if (FileUtils::getTypePath(_targetFile) == FileType::DIRECTORY) {
+			if (_request.getMethod() ==  Method::DELETE) {
+				// Check if the target directory or file exists
+				if (std::filesystem::exists(_targetFile)) {
+					return true;
+				} else {
+					_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
+					return false;
+				}
+			}
 			if (_targetFile.back() != '/') {
 				_statusCode = HTTP::StatusCode::Code::MOVED_PERMANENTLY;
 				_location = _request.getPath() + "/";
-				return false;
+				// return false;
 			}
 
 			// Append the index file to the target file if it's a directory
 			if (!location.getIndex().empty()) {
+				if (_targetFile.back() != '/') {
+					_targetFile.append("/");
+				}
 				_targetFile += location.getIndex();
 			}
 			else {
+				if (_targetFile.back() != '/') {
+					_targetFile.append("/");
+				}
 				_targetFile += _server.getIndex();
 			}
 
@@ -504,8 +537,6 @@ bool HttpResponse::buildBody() {
 			tempBody = _request.getBody();
 			tempBody = removeBoundary(tempBody, _request.getBoundary());
 		}
-		// TODO je moeder hier handle upload path to server root/upload + make header property for that path.
-		// TODO je vader hier test bigger file upload...
 
 		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
 		_targetFile = uploadPath.string();
@@ -533,7 +564,7 @@ bool HttpResponse::buildBody() {
 		return true;
 	}
 	else if (_request.getMethod() == Method::DELETE) {
-		if (!FileUtils::isFileExistAndReadable(_targetFile, "")) {
+		if (!std::filesystem::exists(_targetFile)) {
 			_statusCode = HTTP::StatusCode::Code::NOT_FOUND;
 			return false;
 		}
@@ -573,21 +604,6 @@ bool HttpResponse::readFile() {
 		_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 		return false;
 	}
-
-	/* DEBUG START */
-	if (_targetFile.substr(_targetFile.find_last_of(".")) == ".html" && DEBUG == 1) {
-		std::cout << YELLOW << "Response body:" << RESET << std::endl;
-		for (char c : _responseBody) {
-			std::cout << c;
-			break ;
-		}
-		std::cout << RESET << std::endl;
-		std::cout << RESET << std::endl;
-	}
-	else {
-		DEBUG_PRINT("Image size: " << _responseBody.size() << " bytes");
-	}
-	/* DEBUG END */
 	return true;
 }
 
@@ -607,23 +623,20 @@ void HttpResponse::buildErrorBody() {
 		_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
 	}
 	else { // custom
-		// HTTP::StatusCode::Code tmpCode; //TODO
 		if (_statusCode >= HTTP::StatusCode::Code::BAD_REQUEST && _statusCode < HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR) {
 			_location = errorPageResult.second;
 			if (!_location.starts_with("/")) {
 				_location.insert(_location.begin(), '/');
 			}
-			// tmpCode = _statusCode; //TODO
-			_statusCode = HTTP::StatusCode::Code::FOUND; //possibly needed. but for bette rpractice should be removed..
 		}
 
 		_targetFile = combinePaths(_server.getRoot(), _location);
-		HTTP::StatusCode::Code oldCode = _statusCode;
 		if (!readFile()) {
-			_statusCode = oldCode;
-			_responseBody.assign(errorPageResult.second.begin(), errorPageResult.second.end());
+			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			_responseBody.clear();
+			std::string ise = HTTP::BuiltinErrorPages::getInternalPage(_statusCode);
+			_responseBody.assign(ise.begin(), ise.end());
 		}
-		// _statusCode = tmpCode; //TODO
 	}
 }
 
@@ -645,7 +658,6 @@ bool HttpResponse::buildAutoIndexBody() {
 	// Open the directory
 	directory = opendir(_targetFile.c_str());
 	if (directory == NULL) {
-		DEBUG_PRINT(RED, "opendir failed for " + _targetFile);
 		return false;
 	}
 
@@ -726,7 +738,6 @@ void HttpResponse::buildResponse() {
 	if (!requestIsSuccessful() || !buildBody()) {
 		buildErrorBody();
 	}
-	// TODO je moeder cgi correct handling
 	else if (_autoIndex) {
 		if (!buildAutoIndexBody()) {
 			_statusCode = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;

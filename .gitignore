@@ -34,7 +34,29 @@
 # notes
 notes.md
 
-#testserverdir
-wwwroot/*
+#server dir
+wwwroot/
+
+#config fir
+config_files/
+
+#cgi-bin dir
+cgi-bin/
+
+tests/
+docs/
+subject_files/
+
+
 #keepthis in ignore until formated properly...
 docs/HttpReferences.md 
+
+#ignore log
+*.log
+
+# Do not ignore files in the srcs directory (srcs/WebSmurf)
+!srcs/*
+!srcs/WebSmurf.cpp
+!srcs/WebSmurf.hpp
+#ignore output
+/WebSmurf

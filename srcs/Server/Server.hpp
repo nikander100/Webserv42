@@ -105,7 +105,7 @@ private:
 	std::unordered_map<HTTP::StatusCode::Code, std::string> _errorPages;
 	std::unordered_map<std::string, Location> _locations;
 	
-	ServerSocket _socket; // TODO make this a unique_ptr
+	ServerSocket _socket; // optional TODO make this a unique_ptr
 
 	static void checkInput(std::string &inputcheck);
 	bool _stop;

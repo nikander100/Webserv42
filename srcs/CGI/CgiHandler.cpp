@@ -6,7 +6,7 @@ CgiHandler::CgiHandler() : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(""), _e
 CgiHandler::CgiHandler(std::string path) : _cgiEnvp(), _cgiArgv(), _cgiPid(-1), _cgiPath(path), _error_code(HTTP::StatusCode::Code::NONE) {
 }
 
-CgiHandler::~CgiHandler() { // todo possibly use free instead.
+CgiHandler::~CgiHandler() { 
 	_cgiEnvp.clear();
 	_cgiArgv.clear();
 	_env.clear();
@@ -53,7 +53,6 @@ void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	// Set CGI ENV variables.
 	if (req.getMethod() == Method::POST) {
 		_env["CONTENT_LENGTH"] = std::to_string(req.getBody().size());
-		// Logger::logMsg(DEBUG, CONSOLE_OUTPUT, "Content-Length Passed to cgi is %s", _env["CONTENT_LENGTH"].c_str());
 		_env["CONTENT_TYPE"] = req.getHeader("content-type");
 	}
 	_env["GATEWAY_INTERFACE"] = "CGI/1.1";
@@ -66,7 +65,7 @@ void CgiHandler::initEnvCgi(Request& req, const Location &location) {
 	_env["SERVER_NAME"] = req.getHeader("host");
 	_env["SERVER_PORT"] = "8727";
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
-	_env["SERVER_SOFTWARE"] = "CRATIX";
+	_env["SERVER_SOFTWARE"] = SERVER_NAME;
 	_env["REDIRECT_STATUS"] = "200";
 
 	// Set HTTP headers as environment variables
@@ -132,9 +131,8 @@ void CgiHandler::initEnv(Request& req, const Location &location) {
 	_env["REQUEST_URI"] = req.getPath() + (req.getQuery().empty() ? "" : "?" + req.getQuery());
 	_env["SERVER_PROTOCOL"] = "HTTP/1.1";
 	_env["REDIRECT_STATUS"] = "200";
-	_env["SERVER_SOFTWARE"] = "CRATIX";
+	_env["SERVER_SOFTWARE"] = SERVER_NAME;
 
-	// TODO test?
 	if (req.getMethod() == Method::POST) {
 		_env["HTTP_BODY"] = req.getBody();
 	}
@@ -177,30 +175,33 @@ void CgiHandler::execute() {
 		return;
 	}
 
-	//TODO test TEST TEST MOEDER
 	// Write the body data to stdin
-    if (_env["REQUEST_METHOD"] == "POST") {
-        const std::string& body = _env["HTTP_BODY"];
-        fwrite(body.c_str(), 1, body.size(), inputStream);
-        rewind(inputStream); // Reset file pointer to the beginning
-    }
+	if (_env["REQUEST_METHOD"] == "POST") {
+		const std::string& body = _env["HTTP_BODY"];
+		fwrite(body.c_str(), 1, body.size(), inputStream);
+		rewind(inputStream); // Reset file pointer to the beginning
+	}
 
 	// Convert _cgiArgv to char* array
 	std::vector<char*> argv_temp(_cgiArgv.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiArgv.size(); ++i) {
 		argv_temp[i] = _cgiArgv[i].get();
 	}
-	// argv_temp[_cgiArgv.size()] = nullptr; // null terminator
 
 	// Convert _cgiEnvp to char* array
 	std::vector<char*> envp_temp(_cgiEnvp.size() + 1); // +1 for null terminator
 	for (size_t i = 0; i < _cgiEnvp.size(); ++i) {
 		envp_temp[i] = _cgiEnvp[i].get();
 	}
-	// envp_temp[_cgiEnvp.size()] = nullptr; // null terminator
+
+	signal(SIGALRM, [](int signum) {
+	DEBUG_PRINT(RED, "CGI script timed out");
+	std::exit(EXIT_FAILURE);
+	});
 
 	_cgiPid = fork();
 	if (_cgiPid == 0) { // Child process
+		alarm(CGI_TIMEOUT);  //
 		if(dup2(pipeOut.write_fd, STDOUT_FILENO) == -1) {
 			// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "dup2 failed somehting is majorly wrong with your system, i'd suggest you to seek help from a professional");
 			std::exit(EXIT_FAILURE);
@@ -226,23 +227,37 @@ void CgiHandler::execute() {
 		// Logger::logMsg(ERROR, CONSOLE_OUTPUT, "fork failed");
 		_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
 	} else {
-		waitpid(_cgiPid, NULL, -1);
-		pipeOut.closeWrite();
-		_cgiOutput.clear();
+		int status;
+		waitpid(_cgiPid, &status, 0);
+		alarm(0);  // Cancel the alarm
 
-		while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
-			std::ostringstream oss;
-			oss << std::dec << buffer;
-			_cgiOutput += oss.str();
+		// Reset signal handler to default
+		signal(SIGALRM, SIG_DFL);
+
+		if (WIFEXITED(status) && WEXITSTATUS(status) != 0) {
+			_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			DEBUG_PRINT(RED, "CGI script failed to execute");
+		} else if (WIFSIGNALED(status)) {
+			_error_code = HTTP::StatusCode::Code::INTERNAL_SERVER_ERROR;
+			DEBUG_PRINT(RED, "CGI script took too long to execute");
+		} else {
+			pipeOut.closeWrite();
+			_cgiOutput.clear();
+
+			while (read(pipeOut.read_fd, buffer, sizeof(buffer)) > 0) {
+				std::ostringstream oss;
+				oss << std::dec << buffer;
+				_cgiOutput += oss.str();
+				memset(buffer, 0, sizeof(buffer));
+			}
+
+			pipeOut.closePipe();
 			memset(buffer, 0, sizeof(buffer));
+			dup2(STDIN_FILENO, stdinCopy);
+			fclose(inputStream);
+			close(stdinCopy);
+			close(fdin);
 		}
-
-		pipeOut.closePipe();
-		memset(buffer, 0, sizeof(buffer));
-		dup2(STDIN_FILENO, stdinCopy);
-		fclose(inputStream);
-		close(stdinCopy);
-		close(fdin);
 	}
 }
 

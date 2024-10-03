@@ -14,7 +14,8 @@ Location::Location()
 	  }),
 	  _return(""),
 	  _alias(""),
-	  _clientMaxBodySize(MAX_CONTENT_SIZE) { // 	_clientMaxBodySize = MAX_CONTENT_SIZE;
+	  _clientMaxBodySize(0) 
+	  { // 	_clientMaxBodySize = MAX_CONTENT_SIZE;
 
 }
 

@@ -5,7 +5,7 @@ EpollManager::EpollManager() {
 	_epollFd = epoll_create1(EPOLL_CLOEXEC);
 	if (_epollFd == -1) {
 		DEBUG_PRINT("Error creating epoll instance: ", strerror(errno));
-		throw std::runtime_error("Failed to create epoll instance"); //TODO USE CUSTOM ERROR LOG
+		throw std::runtime_error("Failed to create epoll instance"); //USE CUSTOM ERROR LOG
 	}
 }
 

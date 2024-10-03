@@ -3,7 +3,6 @@
 #include "StatusCodes.hpp"
 #define CRLF "\r\n"
 
-// TODO RETURN any of these internal error pages if user has not set a custom error page
 namespace HTTP {
 namespace BuiltinErrorPages {
 	static const char wbs42_http_error_301_page[] =
