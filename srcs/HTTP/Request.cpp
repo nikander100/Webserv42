@@ -208,7 +208,7 @@ bool Request::parseChunkSize(const std::string &line) {
 bool Request::handleTextData(std::istringstream &stream) {
 	std::string line;
 	if (!std::getline(stream, line)) {
-		return false; // Exit if no more lines are available
+		return true; // Exit if no more lines are available
 	}
 
 	// Re add the \n character
