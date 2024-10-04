@@ -10,6 +10,7 @@ public:
 	Parse();
 	virtual	~Parse();
 	void	readfile(char **argv);
+	void	readfile(std::string arg);
 	void	checkBalance();
 	void	addServersVector();
 	void	setServers();
@@ -19,6 +20,8 @@ public:
 	void	buildTempLocationBlock(std::string string, std::vector<std::string>::const_iterator& it, const std::vector<std::string>& vecS);
 	void	readTempLocationBlock(const std::string& root);
 	void	checkPath(std::string string, std::string del, const std::string& root);
+	void	checkPort(std::string& portString);
+
 
 
 	void handleLocations(std::string lName, Server& server, std::vector<std::string>::const_iterator& it, const std::vector<std::string>& vec);

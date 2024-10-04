@@ -487,6 +487,10 @@ std::string HttpResponse::removeBoundary(std::string &body, const std::string &b
 						if (end != std::string::npos)
 							filename = buffer.substr(start + 10, end - (start + 10));
 							_targetFile= filename;
+					} else {
+						_statusCode = HTTP::StatusCode::Code::BAD_REQUEST;
+						DEBUG_PRINT(RED, "Bad request: none file as input");
+						return "";
 					}
 				} else if (!buffer.compare(0, 1, "\r") && !filename.empty()) {
 					is_boundary = false;
@@ -536,6 +540,13 @@ bool HttpResponse::buildBody() {
 		if (!_request.getBoundary().empty()) {
 			tempBody = _request.getBody();
 			tempBody = removeBoundary(tempBody, _request.getBoundary());
+			if (_statusCode == HTTP::StatusCode::Code::BAD_REQUEST) {
+				return false; // malf request
+			}
+		}
+		if (_request.getHeader("content-type") == "application/x-www-form-urlencoded" || _request.getHeader("content-type") == "application/json") {
+			_statusCode = HTTP::StatusCode::Code::NOT_IMPLEMENTED;
+			return false;
 		}
 
 		std::filesystem::path uploadPath = std::filesystem::path(_server.getRoot()) / UPLOAD_DIR / _targetFile;
