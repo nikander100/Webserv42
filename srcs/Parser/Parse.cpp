@@ -29,6 +29,27 @@ void	Parse::commentsFilter()
 	}
 }
 
+void	Parse::readfile(std::string arg)
+{
+	if (!std::filesystem::exists(arg))
+	{
+		if (arg == "anus")
+			throw std::invalid_argument("damnit kenny\n");
+		throw std::invalid_argument("config_file does not exist\n");
+	}
+	std::ifstream file(arg);
+	std::string line;
+	while (std::getline(file, line))
+		this->_raw_conf_file.push_back(line);
+	this->commentsFilter();
+	this->checkBalance();
+	this->addServersVector();
+	this->setServers();
+	file.close();
+}
+
+
+
 void	Parse::readfile(char **argv)
 {
 	std::string filecheck = argv[1];
@@ -245,6 +266,7 @@ void	Parse::locationPaths(std::string tPaths)
 		if (it == tPaths)
 			throw std::invalid_argument("double same path in location\n");
 	}
+	
 }
 
 
@@ -348,6 +370,16 @@ void	Parse::readTempLocationBlock(const std::string& root)
 	// }
 }
 
+void	Parse::checkPort(std::string& portString)
+{
+	for (auto& itServer : _servers)
+	{
+		if (itServer->getPort()+";" == portString)
+			throw std::invalid_argument("2 servers, 1 port, kinky, but not allowed\n");
+		continue;
+	}
+}
+
 void Parse::setServers() {
 	for (const std::vector<std::string>& vec : this->_servers_conf)
 	{
@@ -377,8 +409,9 @@ void Parse::setServers() {
 			} else if (str.find("listen") != std::string::npos) {
 				_setServerString = str.substr(str.find("listen") + 6);
   				_setServerString.erase(std::remove_if(_setServerString.begin(), _setServerString.end(), ::isspace), _setServerString.end());
-				if (server->getPort() != "0")	//change this to empty string ""
+				if (server->getPort() != "0")	// check ports per server. all servers need unique ports!
 					throw std::runtime_error("port again?\n");
+				checkPort(_setServerString);
 				server->setPort(_setServerString);
 			} else if (str.find("client_max_body_size") != std::string::npos) {
 				_setServerString = str.substr(str.find("client_max_body_size") + 20);
@@ -413,17 +446,17 @@ void Parse::setServers() {
 				locationPaths(temp);
 				_locationPaths.push_back(temp);
 				temp.erase(std::remove_if(temp.begin(), temp.end(), ::isspace), temp.end());
-				// if (!std::filesystem::exists("."+temp))
-				// 	throw std::invalid_argument("invalid Location\n" + temp + "\n");
 				handleLocations(temp, *server, it, vec);
 				_locationBlockTemp.clear();
 			}
 			_setServerString.clear();
 		}
 		_servers.push_back(std::move(server));
+		this->_locationPaths.clear();
 	}
 	// for (auto& s : _servers){
 	// 	Server& ser = *s;
 	// 	std::cout << ser;
 	// }
+
 }
