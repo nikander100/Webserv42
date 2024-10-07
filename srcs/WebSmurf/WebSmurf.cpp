@@ -71,11 +71,14 @@ void WebSmurf::assignToResponsibleServer(struct epoll_event &event) {
 }
 
 void WebSmurf::run(int ac, char **av) {
-	if (ac == 2 && !FIRST_RUN) {
+	if ((ac == 2 || ac == 1) && !FIRST_RUN) {
 		try {
 			Parse parser;
 			DEBUG_PRINT(MAGENTA, "WebSmurf Parsing Config...");
-			parser.readfile(av);
+			if (ac == 2)
+				parser.readfile(av);
+			else if (ac == 1)
+				parser.readfile("config_files/fusion_web.conf");
 			DEBUG_PRINT(GREEN, "WebSmurf Config Parsed...");
 			// parser.printRawConf();
 			setupServers(parser.getServers());
